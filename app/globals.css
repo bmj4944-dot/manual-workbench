@@ -2,26 +2,486 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Fonts ─── */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+
+/* ─── Design tokens (light) ─── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: oklch(0.985 0.005 80);
+  --bg-2: oklch(0.970 0.008 80);
+  --bg-3: oklch(0.955 0.010 80);
+  --panel: oklch(0.995 0.003 80);
+  --line: oklch(0.895 0.010 80);
+  --line-2: oklch(0.825 0.012 80);
+  --ink: oklch(0.205 0.010 80);
+  --ink-2: oklch(0.345 0.012 80);
+  --ink-3: oklch(0.510 0.010 80);
+  --ink-4: oklch(0.660 0.008 80);
+  --accent: oklch(0.55 0.13 45);
+  --accent-2: oklch(0.55 0.13 45 / 0.10);
+  --accent-3: oklch(0.55 0.13 45 / 0.18);
+  --ok: oklch(0.62 0.13 145);
+  --warn: oklch(0.70 0.14 75);
+  --shadow-sm: 0 1px 2px rgba(50, 40, 20, 0.05);
+  --shadow-md: 0 6px 24px -8px rgba(50, 40, 20, 0.12), 0 2px 6px rgba(50, 40, 20, 0.05);
+  --radius: 8px;
+  --radius-lg: 12px;
+  --topbar-h: 52px;
+  --font-kr: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-en: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+[data-theme="dark"] {
+  --bg: oklch(0.180 0.008 80);
+  --bg-2: oklch(0.220 0.010 80);
+  --bg-3: oklch(0.250 0.012 80);
+  --panel: oklch(0.205 0.010 80);
+  --line: oklch(0.305 0.012 80);
+  --line-2: oklch(0.380 0.014 80);
+  --ink: oklch(0.965 0.005 80);
+  --ink-2: oklch(0.870 0.008 80);
+  --ink-3: oklch(0.720 0.010 80);
+  --ink-4: oklch(0.585 0.012 80);
+  --accent: oklch(0.72 0.14 50);
+  --accent-2: oklch(0.72 0.14 50 / 0.14);
+  --accent-3: oklch(0.72 0.14 50 / 0.24);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 24px -8px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
+/* ─── Base ─── */
+html,
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  height: 100%;
+  margin: 0;
+}
+body {
+  font-family: var(--font-kr);
+  font-feature-settings: "ss01", "cv11";
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* ─── Document body styles (prose) ─── */
+.doc-prose {
+  color: var(--ink);
+  font-size: 14.5px;
+  line-height: 1.7;
+}
+.doc-prose h1 {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 28px 0 16px;
+  letter-spacing: -0.02em;
+}
+.doc-prose h2 {
+  font-size: 21px;
+  font-weight: 700;
+  margin: 24px 0 14px;
+  letter-spacing: -0.02em;
+}
+.doc-prose h3 {
+  font-size: 17px;
+  font-weight: 600;
+  margin: 20px 0 10px;
+  letter-spacing: -0.015em;
+}
+.doc-prose h4 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 16px 0 8px;
+}
+.doc-prose p {
+  margin: 0 0 12px;
+}
+.doc-prose strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+.doc-prose em {
+  font-style: italic;
+  color: var(--ink-2);
+}
+.doc-prose ul,
+.doc-prose ol {
+  margin: 8px 0 14px;
+  padding-left: 24px;
+}
+.doc-prose li {
+  margin: 4px 0;
+}
+
+/* Tables */
+.doc-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+  font-size: 13.5px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.doc-prose thead {
+  background: var(--bg-2);
+}
+.doc-prose th,
+.doc-prose td {
+  text-align: left;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+.doc-prose th {
+  font-weight: 600;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  letter-spacing: -0.005em;
+}
+.doc-prose tbody tr:last-child td {
+  border-bottom: 0;
+}
+.doc-prose tbody tr:hover {
+  background: var(--bg-2);
+}
+
+/* Callouts */
+.doc-prose .callout {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  margin: 14px 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+}
+.doc-prose .callout .ico {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 13px;
+  background: var(--panel);
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+}
+.doc-prose .callout .body {
+  flex: 1;
+  min-width: 0;
+}
+.doc-prose .callout .body > p:first-child {
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 4px;
+}
+.doc-prose .callout .body > p {
+  margin: 0;
+}
+.doc-prose .callout.info {
+  background: oklch(0.96 0.03 240 / 0.6);
+  border-color: oklch(0.78 0.08 240 / 0.5);
+}
+.doc-prose .callout.info .ico {
+  background: oklch(0.50 0.13 240);
+  color: white;
+  border-color: transparent;
+}
+.doc-prose .callout.warn {
+  background: oklch(0.96 0.05 75 / 0.6);
+  border-color: oklch(0.80 0.12 75 / 0.5);
+}
+.doc-prose .callout.warn .ico {
+  background: var(--warn);
+  color: white;
+  border-color: transparent;
+}
+
+/* Checklist */
+.doc-prose ul.checklist {
+  list-style: none;
+  padding-left: 4px;
+}
+.doc-prose ul.checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.doc-prose ul.checklist input[type="checkbox"] {
+  margin-top: 4px;
+  accent-color: var(--accent);
+}
+
+/* Script card (read-only in Phase 1) */
+.doc-prose .script-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  margin: 14px 0;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.doc-prose .script-card .sc-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.doc-prose .script-card .sc-hd .lbl {
+  font-family: var(--font-en);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  background: var(--accent-3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.doc-prose .script-card .sc-hd .spacer {
+  flex: 1;
+}
+.doc-prose .script-card .sc-hd .copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.doc-prose .script-card .sc-body {
+  padding: 12px 14px;
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+.doc-prose .script-card .var-slot {
+  background: var(--accent-3);
+  color: var(--accent);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+.doc-prose .script-card .sc-vars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 14px 12px;
+  border-top: 1px dashed var(--line);
+}
+.doc-prose .script-card .vk {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.doc-prose .script-card .vk input {
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  width: 110px;
+}
+
+/* Decision tree (read-only stub) */
+.doc-prose .decision-tree {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-2);
+  padding: 14px;
+  margin: 14px 0;
+}
+.doc-prose .decision-tree .dt-hd {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-en);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.doc-prose .decision-tree .dt-question {
+  font-weight: 600;
+  font-size: 15px;
+  margin: 4px 0 10px;
+}
+.doc-prose .decision-tree .dt-choices {
+  display: flex;
+  gap: 8px;
+}
+.doc-prose .decision-tree .dt-choice {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Mention */
+.doc-prose .mention,
+span[data-type="mention"] {
+  display: inline-block;
+  background: var(--accent-3);
+  color: var(--accent);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Tippy.js (mention popover) tweaks — use parent's theme */
+.tippy-box[data-theme=""] {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Tiptap focus */
+.doc-prose .ProseMirror:focus {
+  outline: none;
+}
+.doc-prose p.is-editor-empty:first-child::before {
+  color: var(--ink-4);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Tiptap: image */
+.doc-prose img.doc-image {
+  max-width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  margin: 14px 0;
+  display: block;
+}
+
+/* Tiptap: link */
+.doc-prose a.doc-link,
+.doc-prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-3);
+  text-underline-offset: 2px;
+}
+.doc-prose a:hover {
+  text-decoration-color: var(--accent);
+}
+
+/* Tiptap: task list */
+.doc-prose ul.task-list {
+  list-style: none;
+  padding-left: 4px;
+}
+.doc-prose ul.task-list li.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 4px 0;
+}
+.doc-prose ul.task-list li.task-item > label {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 3px;
+}
+.doc-prose ul.task-list li.task-item > label input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+.doc-prose ul.task-list li.task-item > div {
+  flex: 1;
+  min-width: 0;
+}
+.doc-prose ul.task-list li.task-item[data-checked="true"] > div {
+  color: var(--ink-3);
+  text-decoration: line-through;
+}
+
+/* Tiptap: resizable table */
+.doc-prose table.doc-table {
+  table-layout: fixed;
+}
+.doc-prose .tableWrapper {
+  overflow-x: auto;
+  margin: 14px 0;
+}
+.doc-prose table th,
+.doc-prose table td {
+  position: relative;
+}
+.doc-prose .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: -2px;
+  width: 4px;
+  background-color: var(--accent);
+  pointer-events: none;
+  opacity: 0;
+}
+.doc-prose table .selectedCell {
+  background: var(--accent-2);
+}
+.doc-prose .resize-cursor {
+  cursor: col-resize;
+}
+.doc-prose table:hover .column-resize-handle {
+  opacity: 0.5;
+}
+
+/* Tiptap: highlight (multicolor) */
+.doc-prose mark {
+  background: oklch(0.94 0.13 95 / 0.55);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* Search / Replace decorations */
+.doc-prose .sr-match {
+  background: oklch(0.92 0.13 95 / 0.5);
+  border-radius: 2px;
+}
+.doc-prose .sr-current {
+  background: oklch(0.80 0.18 75 / 0.7);
+  border-radius: 2px;
+  outline: 1px solid var(--accent);
+}
+
+/* Scrollbar polish */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 6px;
+  border: 2px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--line-2);
 }

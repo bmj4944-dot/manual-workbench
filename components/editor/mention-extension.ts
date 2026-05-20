@@ -3,10 +3,10 @@
 import Mention from "@tiptap/extension-mention";
 import { ReactRenderer } from "@tiptap/react";
 import tippy, { type Instance, type Props as TippyProps } from "tippy.js";
-import { TEAM_MEMBERS } from "@/lib/sample-data";
+import type { TeamMember } from "@/lib/types";
 import { MentionList, type MentionListRef } from "./mention-list";
 
-export function createMentionExtension() {
+export function createMentionExtension(members: TeamMember[]) {
   return Mention.configure({
     HTMLAttributes: { class: "mention" },
     renderText({ node }) {
@@ -15,9 +15,9 @@ export function createMentionExtension() {
     suggestion: {
       char: "@",
       items: ({ query }) =>
-        TEAM_MEMBERS.filter((m) =>
-          m.name.toLowerCase().includes(query.toLowerCase()),
-        ).slice(0, 5),
+        members
+          .filter((m) => m.name.toLowerCase().includes(query.toLowerCase()))
+          .slice(0, 5),
       render: () => {
         let component: ReactRenderer<MentionListRef> | null = null;
         let popup: Instance<TippyProps>[] | null = null;

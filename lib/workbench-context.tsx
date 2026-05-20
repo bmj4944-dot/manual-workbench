@@ -9,27 +9,53 @@ import {
   type ReactNode,
 } from "react";
 import {
+  CASES,
+  COMPLIANCE_RECORDS,
+  MUST_READ_IDS,
+  ONBOARDING_TASKS,
+  PAGE_STATS,
   ROLE_PERMISSIONS,
   SAMPLE_COMMENTS,
   SAMPLE_CONTENT,
   SAMPLE_HISTORY,
   SAMPLE_TREE,
   TEAM_MEMBERS,
+  VERIFICATION,
   WHATS_NEW,
 } from "./sample-data";
+import {
+  addCommentAction,
+  toggleResolveCommentAction,
+} from "./actions/comments";
+import {
+  addFavoriteAction,
+  removeFavoriteAction,
+} from "./actions/favorites";
+import { acknowledgeMustReadAction } from "./actions/compliance";
+import { saveBodyAction } from "./actions/content";
+import { setNodeStatusAction } from "./actions/workflow";
+import { uploadPdfAction } from "./actions/pdf";
 import type {
+  Case,
   Comment,
+  DocContent,
   Locale,
   NodeStatus,
+  OnboardingTask,
+  PageStats,
   Role,
+  TeamMember,
   TreeNode,
+  Verification,
   Version,
+  WhatsNewItem,
 } from "./types";
 
 export type Tab = { id: string; pinned: boolean; dirty?: boolean };
 export type View = "doc" | "search" | "dashboard" | "cases" | "onboarding";
 export type SaveState = "saved" | "saving";
 export type QuizAnswers = Record<string, Record<number, number>>;
+export type CurrentUser = TeamMember & { email: string };
 
 type WorkbenchState = {
   tree: TreeNode[];
@@ -44,6 +70,16 @@ type WorkbenchState = {
   saveState: SaveState;
   comments: Record<string, Comment[]>;
   history: Record<string, Version[]>;
+  content: Record<string, DocContent>;
+  cases: Case[];
+  onboardingTasks: OnboardingTask[];
+  members: TeamMember[];
+  currentUser: CurrentUser | null;
+  pageStats: Record<string, PageStats>;
+  verifications: Record<string, Verification>;
+  mustRead: ReadonlySet<string>;
+  whatsNew: WhatsNewItem[];
+  compliance: Record<string, ReadonlySet<string>>;
   bodyOverrides: Record<string, string>;
   acked: ReadonlySet<string>;
   favorites: string[];
@@ -80,6 +116,7 @@ type WorkbenchState = {
   markAllWhatsNewRead: () => void;
   completeStep: (taskId: string) => void;
   recordQuizAnswer: (taskId: string, q: number, opt: number) => void;
+  attachPdf: (nodeId: string, file: File) => Promise<void>;
 };
 
 const Ctx = createContext<WorkbenchState | null>(null);
@@ -96,8 +133,64 @@ function mutate(
   });
 }
 
-export function WorkbenchProvider({ children }: { children: ReactNode }) {
-  const [tree, setTree] = useState<TreeNode[]>(SAMPLE_TREE);
+export function WorkbenchProvider({
+  children,
+  initialCurrentUser,
+  initialTree,
+  initialContent,
+  initialCases,
+  initialOnboardingTasks,
+  initialMembers,
+  initialPageStats,
+  initialVerifications,
+  initialMustRead,
+  initialWhatsNew,
+  initialCompliance,
+  initialComments,
+  initialHistory,
+  initialFavorites,
+  initialAcked,
+}: {
+  children: ReactNode;
+  initialCurrentUser?: CurrentUser | null;
+  initialTree?: TreeNode[];
+  initialContent?: Record<string, DocContent>;
+  initialCases?: Case[];
+  initialOnboardingTasks?: OnboardingTask[];
+  initialMembers?: TeamMember[];
+  initialPageStats?: Record<string, PageStats>;
+  initialVerifications?: Record<string, Verification>;
+  initialMustRead?: ReadonlySet<string>;
+  initialWhatsNew?: WhatsNewItem[];
+  initialCompliance?: Record<string, ReadonlySet<string>>;
+  initialComments?: Record<string, Comment[]>;
+  initialHistory?: Record<string, Version[]>;
+  initialFavorites?: string[];
+  initialAcked?: ReadonlySet<string>;
+}) {
+  const [tree, setTree] = useState<TreeNode[]>(initialTree ?? SAMPLE_TREE);
+  const [content, setContent] = useState<Record<string, DocContent>>(
+    initialContent ?? SAMPLE_CONTENT,
+  );
+  const [cases] = useState<Case[]>(initialCases ?? CASES);
+  const [onboardingTasks] = useState<OnboardingTask[]>(
+    initialOnboardingTasks ?? ONBOARDING_TASKS,
+  );
+  const [members] = useState<TeamMember[]>(initialMembers ?? TEAM_MEMBERS);
+  const [currentUser] = useState<CurrentUser | null>(initialCurrentUser ?? null);
+  const [pageStats] = useState<Record<string, PageStats>>(
+    initialPageStats ?? PAGE_STATS,
+  );
+  const [verifications] = useState<Record<string, Verification>>(
+    initialVerifications ?? VERIFICATION,
+  );
+  const [mustRead] = useState<ReadonlySet<string>>(
+    initialMustRead ?? MUST_READ_IDS,
+  );
+  const [whatsNew] = useState<WhatsNewItem[]>(initialWhatsNew ?? WHATS_NEW);
+  const [compliance] = useState<Record<string, ReadonlySet<string>>>(
+    initialCompliance ?? COMPLIANCE_RECORDS,
+  );
   const [activeId, setActiveIdState] = useState<string>("ch1-2-1");
   const [openTabs, setOpenTabs] = useState<Tab[]>([{ id: "ch1-2-1", pinned: false }]);
   const [maxTabs, setMaxTabs] = useState<number>(8);
@@ -105,13 +198,19 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
   const [locale, setLocale] = useState<Locale>("ko");
-  const [role, setRole] = useState<Role>("admin");
+  const [role, setRole] = useState<Role>(initialCurrentUser?.role ?? "admin");
   const [saveState, setSaveState] = useState<SaveState>("saved");
-  const [comments, setComments] = useState<Record<string, Comment[]>>(SAMPLE_COMMENTS);
-  const [history, setHistory] = useState<Record<string, Version[]>>(SAMPLE_HISTORY);
+  const [comments, setComments] = useState<Record<string, Comment[]>>(
+    initialComments ?? SAMPLE_COMMENTS,
+  );
+  const [history, setHistory] = useState<Record<string, Version[]>>(
+    initialHistory ?? SAMPLE_HISTORY,
+  );
   const [bodyOverrides, setBodyOverrides] = useState<Record<string, string>>({});
-  const [acked, setAcked] = useState<ReadonlySet<string>>(new Set());
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const [acked, setAcked] = useState<ReadonlySet<string>>(
+    initialAcked ?? new Set(),
+  );
+  const [favorites, setFavorites] = useState<string[]>(initialFavorites ?? []);
   const [whatsNewRead, setWhatsNewRead] = useState<ReadonlySet<string>>(new Set());
   const [onboardingDone, setOnboardingDone] = useState<ReadonlySet<string>>(new Set());
   const [quizAnswers, setQuizAnswers] = useState<QuizAnswers>({});
@@ -195,44 +294,125 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
         published: "publish",
       };
       if (!ROLE_PERMISSIONS[role].includes(needed[status])) return false;
-      setTree((prev) => mutate(prev, id, (n) => ({ ...n, status })));
+
+      // 1) Optimistically update tree status
+      let prevStatus: NodeStatus | undefined;
+      setTree((prev) =>
+        mutate(prev, id, (n) => {
+          prevStatus = n.status;
+          return { ...n, status };
+        }),
+      );
+
+      // 2) Optimistically append a version snapshot (matches what the server
+      //    action does). Skip for 'draft' transitions (no snapshot server-side).
+      let optimisticVersionId: string | null = null;
+      const me = currentUser ?? members.find((m) => m.role === role) ?? members[0];
+      if (status !== "draft" && me) {
+        const STATUS_LABEL_KO: Record<NodeStatus, string> = {
+          draft: "초안",
+          review: "검토중",
+          approved: "승인",
+          published: "공개",
+        };
+        const currentBody = bodyOverrides[id] ?? content[id]?.body ?? "";
+        const tag: Version["tag"] | undefined =
+          status === "approved" || status === "published" ? status : undefined;
+        optimisticVersionId = `tmp-${Date.now()}`;
+        setHistory((prev) => {
+          const list = prev[id] ?? [];
+          const head = list[0];
+          const lastV = head ? parseFloat(head.v.replace(/^v/, "")) : 1.0;
+          const nextV = `v${(lastV + 0.1).toFixed(1)}`;
+          const newVersion: Version = {
+            id: optimisticVersionId!,
+            v: nextV,
+            who: me.name,
+            when: "방금",
+            desc: `상태 변경 → ${STATUS_LABEL_KO[status]}`,
+            body: currentBody,
+            ...(tag ? { tag } : {}),
+          };
+          return { ...prev, [id]: [newVersion, ...list].slice(0, 30) };
+        });
+      }
+
+      // 3) Server action; on failure, rollback both tree status and version.
+      setNodeStatusAction(id, status).catch((err) => {
+        console.error("setNodeStatusAction failed", err);
+        setTree((prev) =>
+          mutate(prev, id, (n) => ({ ...n, status: prevStatus })),
+        );
+        if (optimisticVersionId) {
+          const vid = optimisticVersionId;
+          setHistory((prev) => ({
+            ...prev,
+            [id]: (prev[id] ?? []).filter((x) => x.id !== vid),
+          }));
+        }
+      });
       return true;
     },
-    [role],
+    [role, members, currentUser, bodyOverrides, content],
   );
 
   const addComment = useCallback(
     (nodeId: string, body: string) => {
-      if (!body.trim()) return;
-      const me = TEAM_MEMBERS.find((m) => m.role === role) ?? TEAM_MEMBERS[0];
+      const trimmed = body.trim();
+      if (!trimmed) return;
+      const me = currentUser ?? members.find((m) => m.role === role) ?? members[0];
+      if (!me) return;
+      const optimisticId = `tmp-${Date.now()}`;
       const newComment: Comment = {
-        id: `cm-${Date.now()}`,
+        id: optimisticId,
         who: me.name,
         initials: me.initials,
         color: me.color,
         when: "방금",
-        body,
+        body: trimmed,
       };
       setComments((prev) => ({
         ...prev,
         [nodeId]: [newComment, ...(prev[nodeId] ?? [])],
       }));
+      addCommentAction(nodeId, trimmed).catch((err) => {
+        console.error("addCommentAction failed", err);
+        setComments((prev) => ({
+          ...prev,
+          [nodeId]: (prev[nodeId] ?? []).filter((c) => c.id !== optimisticId),
+        }));
+      });
     },
-    [role],
+    [role, members, currentUser],
   );
 
   const resolveComment = useCallback((nodeId: string, commentId: string) => {
+    let nextResolved = false;
     setComments((prev) => ({
       ...prev,
-      [nodeId]: (prev[nodeId] ?? []).map((c) =>
-        c.id === commentId ? { ...c, resolved: !c.resolved } : c,
-      ),
+      [nodeId]: (prev[nodeId] ?? []).map((c) => {
+        if (c.id !== commentId) return c;
+        nextResolved = !c.resolved;
+        return { ...c, resolved: nextResolved };
+      }),
     }));
+    // 낙관적 UI 후 서버 반영. 임시 id면 아직 DB에 없으니 호출 안 함.
+    if (commentId.startsWith("tmp-")) return;
+    toggleResolveCommentAction(commentId, nextResolved).catch((err) => {
+      console.error("toggleResolveCommentAction failed", err);
+      setComments((prev) => ({
+        ...prev,
+        [nodeId]: (prev[nodeId] ?? []).map((c) =>
+          c.id === commentId ? { ...c, resolved: !nextResolved } : c,
+        ),
+      }));
+    });
   }, []);
 
   const pushVersion = useCallback(
     (nodeId: string, body: string, desc?: string) => {
-      const me = TEAM_MEMBERS.find((m) => m.role === role) ?? TEAM_MEMBERS[0];
+      const me = members.find((m) => m.role === role) ?? members[0];
+      if (!me) return;
       setHistory((prev) => {
         const list = prev[nodeId] ?? [];
         const head = list[0];
@@ -249,25 +429,49 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
         return { ...prev, [nodeId]: [newVersion, ...list].slice(0, 30) };
       });
     },
-    [role],
+    [role, members],
   );
 
   const setBody = useCallback((nodeId: string, html: string) => {
     setBodyOverrides((prev) => ({ ...prev, [nodeId]: html }));
+    saveBodyAction(nodeId, html).catch((err) => {
+      console.error("saveBodyAction failed", err);
+      // No rollback for autosave — keep the user's text. They can retry by
+      // editing again. A toast would be nicer; defer to a UI pass.
+    });
   }, []);
 
   const ack = useCallback((nodeId: string) => {
     setAcked((prev) => {
+      if (prev.has(nodeId)) return prev;
       const next = new Set(prev);
       next.add(nodeId);
       return next;
     });
+    acknowledgeMustReadAction(nodeId).catch((err) => {
+      console.error("acknowledgeMustReadAction failed", err);
+      setAcked((prev) => {
+        if (!prev.has(nodeId)) return prev;
+        const next = new Set(prev);
+        next.delete(nodeId);
+        return next;
+      });
+    });
   }, []);
 
   const toggleFavorite = useCallback((nodeId: string) => {
-    setFavorites((prev) =>
-      prev.includes(nodeId) ? prev.filter((x) => x !== nodeId) : [...prev, nodeId],
-    );
+    let wasFav = false;
+    setFavorites((prev) => {
+      wasFav = prev.includes(nodeId);
+      return wasFav ? prev.filter((x) => x !== nodeId) : [...prev, nodeId];
+    });
+    const action = wasFav ? removeFavoriteAction : addFavoriteAction;
+    action(nodeId).catch((err) => {
+      console.error("favorite action failed", err);
+      setFavorites((prev) =>
+        wasFav ? [...prev, nodeId] : prev.filter((x) => x !== nodeId),
+      );
+    });
   }, []);
 
   const markWhatsNewRead = useCallback((id: string) => {
@@ -279,8 +483,8 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const markAllWhatsNewRead = useCallback(() => {
-    setWhatsNewRead(new Set(WHATS_NEW.map((w) => w.id)));
-  }, []);
+    setWhatsNewRead(new Set(whatsNew.map((w) => w.id)));
+  }, [whatsNew]);
 
   const completeStep = useCallback((taskId: string) => {
     setOnboardingDone((prev) => {
@@ -306,10 +510,46 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       const v = (history[nodeId] ?? []).find((x) => x.id === versionId);
       if (!v) return;
       const source =
-        v.body || bodyOverrides[nodeId] || SAMPLE_CONTENT[nodeId]?.body || "";
+        v.body || bodyOverrides[nodeId] || content[nodeId]?.body || "";
       setBody(nodeId, source);
     },
-    [history, bodyOverrides, setBody],
+    [history, bodyOverrides, content, setBody],
+  );
+
+  const attachPdf = useCallback(
+    async (nodeId: string, file: File) => {
+      if (!ROLE_PERMISSIONS[role].includes("edit")) {
+        throw new Error("편집 권한이 없습니다.");
+      }
+      const fd = new FormData();
+      fd.set("file", file);
+      await uploadPdfAction(nodeId, fd);
+      // On success, mirror server state into local optimistic stores so the
+      // user immediately drops into the PDF viewer (badge='PDF') with the
+      // newly uploaded file (pdfStoragePath set).
+      setTree((prev) =>
+        mutate(prev, nodeId, (n) => ({ ...n, badge: "PDF" })),
+      );
+      setContent((prev) => {
+        const existing = prev[nodeId] ?? {
+          tags: [],
+          updated: "방금",
+          author: currentUser?.name ?? "",
+          version: "v0.1",
+          body: "",
+        };
+        return {
+          ...prev,
+          [nodeId]: {
+            ...existing,
+            type: "pdf" as const,
+            pdfStoragePath: `${nodeId}.pdf`,
+            pdfTitle: file.name.replace(/\.pdf$/i, "").trim() || existing.pdfTitle,
+          },
+        };
+      });
+    },
+    [role, currentUser],
   );
 
   const value = useMemo<WorkbenchState>(
@@ -326,6 +566,16 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       saveState,
       comments,
       history,
+      content,
+      cases,
+      onboardingTasks,
+      members,
+      currentUser,
+      pageStats,
+      verifications,
+      mustRead,
+      whatsNew,
+      compliance,
       bodyOverrides,
       acked,
       favorites,
@@ -360,6 +610,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       markAllWhatsNewRead,
       completeStep,
       recordQuizAnswer,
+      attachPdf,
     }),
     [
       tree,
@@ -374,6 +625,16 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       saveState,
       comments,
       history,
+      content,
+      cases,
+      onboardingTasks,
+      members,
+      currentUser,
+      pageStats,
+      verifications,
+      mustRead,
+      whatsNew,
+      compliance,
       bodyOverrides,
       acked,
       favorites,
@@ -399,6 +660,7 @@ export function WorkbenchProvider({ children }: { children: ReactNode }) {
       markAllWhatsNewRead,
       completeStep,
       recordQuizAnswer,
+      attachPdf,
       onboardingDone,
       quizAnswers,
     ],

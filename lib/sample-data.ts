@@ -9,6 +9,7 @@ import type {
   Verification,
   VerifyState,
   Version,
+  WhatsNewItem,
 } from "./types";
 
 export const TEAM_MEMBERS: TeamMember[] = [
@@ -78,14 +79,6 @@ export const MUST_READ_IDS: ReadonlySet<string> = new Set([
   "ch4-1-1",
   "ch1-2-1",
 ]);
-
-export type WhatsNewItem = {
-  id: string;
-  what: string;
-  when: string;
-  who: string;
-  isNew: boolean;
-};
 
 export const WHATS_NEW: WhatsNewItem[] = [
   { id: "ch1-2-1", what: "톤 매트릭스 4행 추가", when: "2시간 전", who: "김상담", isNew: true },

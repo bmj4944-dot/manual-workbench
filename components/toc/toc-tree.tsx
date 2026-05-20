@@ -10,7 +10,6 @@ import {
   Star,
 } from "lucide-react";
 import { useWorkbench } from "@/lib/workbench-context";
-import { MUST_READ_IDS } from "@/lib/sample-data";
 import type { TreeNode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -38,14 +37,21 @@ export function TocTree({ nodes }: { nodes: TreeNode[] }) {
 }
 
 function TocNode({ node }: { node: TreeNode }) {
-  const { activeId, setActiveId, toggleOpen, locale, favorites, acked } =
-    useWorkbench();
+  const {
+    activeId,
+    setActiveId,
+    toggleOpen,
+    locale,
+    favorites,
+    acked,
+    mustRead: mustReadSet,
+  } = useWorkbench();
   const hasChildren = !!node.children?.length;
   const isActive = activeId === node.id;
   const label = locale === "ko" ? node.label : node.labelEn ?? node.label;
   const indent = INDENT_PX[node.type];
   const isFav = favorites.includes(node.id);
-  const mustRead = MUST_READ_IDS.has(node.id);
+  const mustRead = mustReadSet.has(node.id);
   const ackPending = mustRead && !acked.has(node.id);
 
   const Icon =

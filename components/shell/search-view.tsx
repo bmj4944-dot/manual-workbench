@@ -3,8 +3,7 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { findPath, flatten, useWorkbench } from "@/lib/workbench-context";
-import { SAMPLE_CONTENT } from "@/lib/sample-data";
-import type { TreeNode } from "@/lib/types";
+import type { DocContent, TreeNode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type Filter = "all" | "chapter" | "section" | "item";
@@ -15,11 +14,21 @@ type Hit = {
 };
 
 export function SearchView() {
-  const { tree, searchQuery, setSearchQuery, setActiveId, locale } = useWorkbench();
+  const {
+    tree,
+    searchQuery,
+    setSearchQuery,
+    setActiveId,
+    locale,
+    content,
+  } = useWorkbench();
   const [filter, setFilter] = useState<Filter>("all");
   const [draft, setDraft] = useState(searchQuery);
 
-  const hits = useMemo(() => search(tree, searchQuery), [tree, searchQuery]);
+  const hits = useMemo(
+    () => search(tree, searchQuery, content),
+    [tree, searchQuery, content],
+  );
   const visible = useMemo(
     () => (filter === "all" ? hits : hits.filter((h) => h.node.type === filter)),
     [hits, filter],
@@ -169,7 +178,11 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function search(tree: TreeNode[], q: string): Hit[] {
+function search(
+  tree: TreeNode[],
+  q: string,
+  contentMap: Record<string, DocContent>,
+): Hit[] {
   const lq = q.trim().toLowerCase();
   if (!lq) return [];
   const hits: Hit[] = [];
@@ -179,7 +192,7 @@ function search(tree: TreeNode[], q: string): Hit[] {
       hits.push({ node: n, matchedIn: "title" });
       continue;
     }
-    const content = SAMPLE_CONTENT[n.id];
+    const content = contentMap[n.id];
     if (content) {
       const text = stripHtml(content.body);
       const idx = text.toLowerCase().indexOf(lq);

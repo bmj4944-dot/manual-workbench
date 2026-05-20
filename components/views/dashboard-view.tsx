@@ -2,17 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { Bell, Check, ShieldAlert } from "lucide-react";
-import {
-  COMPLIANCE_RECORDS,
-  MUST_READ_IDS,
-  PAGE_STATS,
-  TEAM_MEMBERS,
-  VERIFICATION,
-  verifyStatus,
-} from "@/lib/sample-data";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
-import type { VerifyState } from "@/lib/types";
+import type { Verification, VerifyState } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+function verifyState(v: Verification): VerifyState {
+  const ratio = v.lastVerified / v.intervalDays;
+  if (ratio < 0.7) return "fresh";
+  if (ratio < 1.0) return "aging";
+  return "stale";
+}
 
 type Tab = "compliance" | "analytics" | "verify";
 
@@ -91,18 +90,18 @@ function Kpi({
 }
 
 function CompliancePane() {
-  const { tree } = useWorkbench();
-  const ids = useMemo(() => Array.from(MUST_READ_IDS), []);
-  const totalCells = ids.length * TEAM_MEMBERS.length;
+  const { tree, mustRead, members, compliance } = useWorkbench();
+  const ids = useMemo(() => Array.from(mustRead), [mustRead]);
+  const totalCells = ids.length * members.length;
   let ack = 0;
-  for (const m of TEAM_MEMBERS) {
+  for (const m of members) {
     for (const id of ids) {
-      if (COMPLIANCE_RECORDS[m.id]?.has(id)) ack += 1;
+      if (compliance[m.id]?.has(id)) ack += 1;
     }
   }
   const rate = totalCells === 0 ? 0 : Math.round((ack / totalCells) * 100);
-  const pendingMembers = TEAM_MEMBERS.filter((m) => {
-    const recs = COMPLIANCE_RECORDS[m.id];
+  const pendingMembers = members.filter((m) => {
+    const recs = compliance[m.id];
     return ids.some((id) => !(recs?.has(id) ?? false));
   });
 
@@ -110,7 +109,7 @@ function CompliancePane() {
     <>
       <div className="mb-5 grid grid-cols-4 gap-3">
         <Kpi label="필독 항목" value={`${ids.length}`} hint="현재 지정된 항목 수" />
-        <Kpi label="대상 멤버" value={`${TEAM_MEMBERS.length}`} />
+        <Kpi label="대상 멤버" value={`${members.length}`} />
         <Kpi
           label="진행률"
           value={`${rate}%`}
@@ -131,7 +130,7 @@ function CompliancePane() {
               <th className="sticky left-0 z-10 border-b border-line bg-surface-2 px-3 py-2 text-left font-medium">
                 항목
               </th>
-              {TEAM_MEMBERS.map((m) => (
+              {members.map((m) => (
                 <th
                   key={m.id}
                   className="border-b border-line px-3 py-2 text-center font-medium"
@@ -155,8 +154,8 @@ function CompliancePane() {
                   <td className="sticky left-0 bg-panel px-3 py-1.5 text-ink-2">
                     {node?.label ?? id}
                   </td>
-                  {TEAM_MEMBERS.map((m) => {
-                    const done = COMPLIANCE_RECORDS[m.id]?.has(id);
+                  {members.map((m) => {
+                    const done = compliance[m.id]?.has(id);
                     return (
                       <td
                         key={m.id}
@@ -188,8 +187,8 @@ function CompliancePane() {
           </button>
         </div>
         <ul className="flex flex-col gap-2">
-          {TEAM_MEMBERS.map((m) => {
-            const recs = COMPLIANCE_RECORDS[m.id];
+          {members.map((m) => {
+            const recs = compliance[m.id];
             const doneCount = ids.filter((id) => recs?.has(id) ?? false).length;
             const pct = Math.round((doneCount / ids.length) * 100);
             return (
@@ -226,13 +225,13 @@ function CompliancePane() {
 }
 
 function AnalyticsPane() {
-  const { tree } = useWorkbench();
-  const entries = Object.entries(PAGE_STATS);
+  const { tree, pageStats } = useWorkbench();
+  const entries = Object.entries(pageStats);
   const totalViews = entries.reduce((s, [, v]) => s + v.views, 0);
   const totalCopies = entries.reduce((s, [, v]) => s + v.copies, 0);
   const avgHelpful =
     entries.reduce((s, [, v]) => s + v.helpful, 0) / Math.max(entries.length, 1);
-  const hourly = PAGE_STATS["ch1-2-1"]?.hourly ?? [];
+  const hourly = pageStats["ch1-2-1"]?.hourly ?? [];
   const maxHourly = Math.max(1, ...hourly);
 
   const topViews = [...entries]
@@ -381,15 +380,10 @@ function RankRow({
 }
 
 function VerifyPane() {
-  const { tree } = useWorkbench();
-  const entries = Object.entries(VERIFICATION).map(([id, v]) => {
+  const { tree, verifications } = useWorkbench();
+  const entries = Object.entries(verifications).map(([id, v]) => {
     const ratio = v.lastVerified / v.intervalDays;
-    return {
-      id,
-      v,
-      ratio,
-      state: (verifyStatus(id) ?? "fresh") as VerifyState,
-    };
+    return { id, v, ratio, state: verifyState(v) };
   });
   const stale = entries.filter((e) => e.state === "stale").length;
   const aging = entries.filter((e) => e.state === "aging").length;

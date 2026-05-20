@@ -2,15 +2,19 @@
 
 import { Bell, CheckCheck } from "lucide-react";
 import { useState } from "react";
-import { WHATS_NEW } from "@/lib/sample-data";
 import { useWorkbench } from "@/lib/workbench-context";
 import { cn } from "@/lib/utils";
 
 export function NotificationsBell() {
   const [open, setOpen] = useState(false);
-  const { whatsNewRead, markWhatsNewRead, markAllWhatsNewRead, setActiveId } =
-    useWorkbench();
-  const unread = WHATS_NEW.filter((w) => !whatsNewRead.has(w.id)).length;
+  const {
+    whatsNew,
+    whatsNewRead,
+    markWhatsNewRead,
+    markAllWhatsNewRead,
+    setActiveId,
+  } = useWorkbench();
+  const unread = whatsNew.filter((w) => !whatsNewRead.has(w.id)).length;
 
   return (
     <div className="relative">
@@ -49,7 +53,7 @@ export function NotificationsBell() {
               </button>
             </div>
             <ul className="max-h-[400px] overflow-y-auto py-1">
-              {WHATS_NEW.map((w) => {
+              {whatsNew.map((w) => {
                 const unread = !whatsNewRead.has(w.id);
                 return (
                   <li key={w.id}>

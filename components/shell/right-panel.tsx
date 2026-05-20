@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Check, RotateCcw, Send, Tag } from "lucide-react";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
-import { SAMPLE_CONTENT } from "@/lib/sample-data";
 import type { Comment, Version } from "@/lib/types";
 import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
@@ -12,10 +11,10 @@ const TABS = ["outline", "comments", "history"] as const;
 type Tab = (typeof TABS)[number];
 
 export function RightPanel() {
-  const { tree, activeId, locale, comments, history } = useWorkbench();
+  const { tree, activeId, locale, comments, history, content: contentMap } = useWorkbench();
   const [tab, setTab] = useState<Tab>("outline");
   const node = findNode(tree, activeId);
-  const content = SAMPLE_CONTENT[activeId];
+  const content = contentMap[activeId];
   const list = comments[activeId] ?? [];
   const versions = history[activeId] ?? [];
 

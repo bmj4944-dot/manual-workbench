@@ -12,9 +12,9 @@ npm install
 npm run dev
 ```
 
-브라우저에서 [http://localhost:3017](http://localhost:3017) 을 엽니다.
+브라우저에서 [http://localhost:3100](http://localhost:3100) 을 엽니다.
 
-> 같은 머신에서 `presenter-saas`(3000번)와 함께 띄울 수 있도록 로컬 포트는 3017에 고정되어 있습니다. 변경하려면 `package.json`의 `dev` 스크립트의 `-p` 옵션을 수정하세요.
+> 같은 머신에서 `presenter-saas`(3000번)와 함께 띄울 수 있도록 로컬 포트는 3100에 고정되어 있습니다. 변경하려면 `package.json`의 `dev` 스크립트의 `-p` 옵션을 수정하세요.
 
 ## 기술 스택
 

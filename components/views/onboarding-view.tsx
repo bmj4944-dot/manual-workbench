@@ -11,7 +11,6 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-import { ONBOARDING_TASKS } from "@/lib/sample-data";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
 import type { OnboardingQuestion, OnboardingTask } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -23,11 +22,11 @@ const TYPE_META: Record<OnboardingTask["type"], { icon: typeof BookOpen; ko: str
 };
 
 export function OnboardingView() {
-  const { onboardingDone, tree, setActiveId } = useWorkbench();
-  const [openId, setOpenId] = useState<string | null>(ONBOARDING_TASKS[0]?.id ?? null);
+  const { onboardingDone, tree, setActiveId, onboardingTasks } = useWorkbench();
+  const [openId, setOpenId] = useState<string | null>(onboardingTasks[0]?.id ?? null);
 
-  const total = ONBOARDING_TASKS.length;
-  const done = ONBOARDING_TASKS.filter((t) => onboardingDone.has(t.id)).length;
+  const total = onboardingTasks.length;
+  const done = onboardingTasks.filter((t) => onboardingDone.has(t.id)).length;
   const pct = Math.round((done / total) * 100);
   const allDone = done === total;
 
@@ -82,7 +81,7 @@ export function OnboardingView() {
         )}
 
         <ul className="flex flex-col gap-2">
-          {ONBOARDING_TASKS.map((task, i) => {
+          {onboardingTasks.map((task, i) => {
             const isOpen = openId === task.id;
             const isDone = onboardingDone.has(task.id);
             const Meta = TYPE_META[task.type];

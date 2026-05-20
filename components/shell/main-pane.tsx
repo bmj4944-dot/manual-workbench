@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
-import { MessageCircle, Star } from "lucide-react";
+import { MessageCircle, Paperclip, Star } from "lucide-react";
 import { useWorkbench, findNode } from "@/lib/workbench-context";
-import { SAMPLE_CONTENT, defaultBody } from "@/lib/sample-data";
+import { defaultBody } from "@/lib/sample-data";
 import { DocumentEditor } from "@/components/editor/document-editor";
 import { EditorToolbar } from "@/components/editor/editor-toolbar";
 import { FindReplaceBar } from "@/components/editor/find-replace-bar";
@@ -27,22 +27,24 @@ export function MainPane() {
     activeId,
     locale,
     can,
+    content: contentMap,
     bodyOverrides,
     setBody,
     setSaveState,
     setDirty,
-    pushVersion,
     favorites,
     toggleFavorite,
+    attachPdf,
   } = useWorkbench();
   const [editable, setEditable] = useState(true);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [findOpen, setFindOpen] = useState(false);
+  const [attaching, setAttaching] = useState(false);
   const saveTimer = useRef<number | null>(null);
   const lastSavedRef = useRef<string>("");
 
   const node = findNode(tree, activeId);
-  const content = SAMPLE_CONTENT[activeId];
+  const content = contentMap[activeId];
   const baseBody = content?.body ?? defaultBody(activeId, node?.label ?? "");
   const body = bodyOverrides[activeId] ?? baseBody;
   const status = node?.status ?? "draft";
@@ -75,12 +77,11 @@ export function MainPane() {
         }
         lastSavedRef.current = html;
         setBody(activeId, html);
-        pushVersion(activeId, html);
         setSaveState("saved");
         setDirty(activeId, false);
       }, 800);
     },
-    [activeId, setBody, setDirty, setSaveState, pushVersion],
+    [activeId, setBody, setDirty, setSaveState],
   );
 
   useEffect(() => {
@@ -201,6 +202,37 @@ export function MainPane() {
                   >
                     <Star size={14} className={cn(isFav && "fill-warn")} />
                   </button>
+                  {canEdit && (
+                    <label
+                      className={cn(
+                        "flex h-7 cursor-pointer items-center gap-1 rounded-md border border-line bg-panel px-2 text-[11.5px] text-ink-3 hover:text-accent",
+                        attaching && "cursor-wait opacity-60",
+                      )}
+                      title="이 문서에 PDF를 첨부 (업로드 후 PDF 뷰어로 전환)"
+                    >
+                      <Paperclip size={12} />
+                      {attaching ? "업로드 중..." : "PDF 첨부"}
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        disabled={attaching}
+                        className="hidden"
+                        onChange={async (e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = "";
+                          if (!f) return;
+                          setAttaching(true);
+                          try {
+                            await attachPdf(activeId, f);
+                          } catch (err) {
+                            console.error("attachPdf failed", err);
+                          } finally {
+                            setAttaching(false);
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
                   {node.hasComments ? (
                     <button
                       type="button"

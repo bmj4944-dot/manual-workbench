@@ -3,7 +3,6 @@
 import { Plus, Search, Sparkles, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
-import { WHATS_NEW } from "@/lib/sample-data";
 import { t } from "@/lib/i18n";
 import { TocTree } from "@/components/toc/toc-tree";
 import type { TreeNode } from "@/lib/types";
@@ -34,12 +33,19 @@ function filterTree(nodes: TreeNode[], q: string): TreeNode[] {
 }
 
 export function Sidebar() {
-  const { tree, locale, favorites, setActiveId, whatsNewRead, markWhatsNewRead } =
-    useWorkbench();
+  const {
+    tree,
+    locale,
+    favorites,
+    setActiveId,
+    whatsNewRead,
+    markWhatsNewRead,
+    whatsNew,
+  } = useWorkbench();
   const [q, setQ] = useState("");
   const filtered = useMemo(() => filterTree(tree, q), [tree, q]);
   const total = useMemo(() => countLeaves(tree), [tree]);
-  const unread = WHATS_NEW.filter((w) => !whatsNewRead.has(w.id));
+  const unread = whatsNew.filter((w) => !whatsNewRead.has(w.id));
   const topWhatsNew = unread.slice(0, 2);
 
   return (

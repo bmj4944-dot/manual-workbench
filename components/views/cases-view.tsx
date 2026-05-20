@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { Clock, Link2, Phone, X } from "lucide-react";
-import { CASES } from "@/lib/sample-data";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
 import type { Case } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -18,14 +17,14 @@ const RESULT: Record<Case["result"], { ko: string; cls: string }> = {
 export function CasesView() {
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<Case | null>(null);
-  const { setActiveId, tree } = useWorkbench();
+  const { setActiveId, tree, cases } = useWorkbench();
   const visible = useMemo(
-    () => (filter === "all" ? CASES : CASES.filter((c) => c.result === filter)),
-    [filter],
+    () => (filter === "all" ? cases : cases.filter((c) => c.result === filter)),
+    [filter, cases],
   );
-  const good = CASES.filter((c) => c.result === "good").length;
-  const bad = CASES.filter((c) => c.result === "bad").length;
-  const mixed = CASES.filter((c) => c.result === "mixed").length;
+  const good = cases.filter((c) => c.result === "good").length;
+  const bad = cases.filter((c) => c.result === "bad").length;
+  const mixed = cases.filter((c) => c.result === "mixed").length;
 
   return (
     <main className="min-h-0 overflow-y-auto bg-surface">
@@ -38,7 +37,7 @@ export function CasesView() {
         </p>
 
         <div className="mb-5 grid grid-cols-4 gap-3">
-          <Hero label="총 사례" value={`${CASES.length}`} />
+          <Hero label="총 사례" value={`${cases.length}`} />
           <Hero label="우수" value={`${good}`} tone="ok" />
           <Hero label="실패" value={`${bad}`} tone="bad" />
           <Hero label="복합" value={`${mixed}`} tone="warn" />

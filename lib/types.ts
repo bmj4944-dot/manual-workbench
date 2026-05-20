@@ -21,6 +21,7 @@ export type DocContent = {
   type?: "pdf";
   pdfTitle?: string;
   pdfPages?: number;
+  pdfStoragePath?: string;
 };
 
 export type Locale = "ko" | "en";
@@ -91,6 +92,14 @@ export type OnboardingQuestion = {
   opts: string[];
   correct: number;
   explain: string;
+};
+
+export type WhatsNewItem = {
+  id: string;
+  what: string;
+  when: string;
+  who: string;
+  isNew: boolean;
 };
 
 export type OnboardingTask = {

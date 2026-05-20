@@ -19,6 +19,7 @@ import TaskItem from "@tiptap/extension-task-item";
 import { useEffect, useMemo } from "react";
 import { SearchReplace } from "./search-replace-extension";
 import { createMentionExtension } from "./mention-extension";
+import { useWorkbench } from "@/lib/workbench-context";
 
 type Props = {
   content: string;
@@ -28,6 +29,7 @@ type Props = {
 };
 
 export function DocumentEditor({ content, editable = true, onEditor, onUpdate }: Props) {
+  const { members } = useWorkbench();
   const extensions = useMemo(
     () => [
       StarterKit.configure({
@@ -54,9 +56,9 @@ export function DocumentEditor({ content, editable = true, onEditor, onUpdate }:
       TaskList.configure({ HTMLAttributes: { class: "task-list" } }),
       TaskItem.configure({ nested: true, HTMLAttributes: { class: "task-item" } }),
       SearchReplace,
-      createMentionExtension(),
+      createMentionExtension(members),
     ],
-    [],
+    [members],
   );
 
   const editor = useEditor({

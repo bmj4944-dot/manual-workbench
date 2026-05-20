@@ -1,13 +1,12 @@
 "use client";
 
 import { Check, ShieldAlert } from "lucide-react";
-import { MUST_READ_IDS } from "@/lib/sample-data";
 import { useWorkbench } from "@/lib/workbench-context";
 import { cn } from "@/lib/utils";
 
 export function MustReadBar({ nodeId }: { nodeId: string }) {
-  const { acked, ack } = useWorkbench();
-  const required = MUST_READ_IDS.has(nodeId);
+  const { acked, ack, mustRead } = useWorkbench();
+  const required = mustRead.has(nodeId);
   if (!required) return null;
   const done = acked.has(nodeId);
 

@@ -40,16 +40,16 @@ export async function uploadPdfAction(
     .upload(path, file, { contentType: "application/pdf", upsert: true });
   if (uploadErr) throw uploadErr;
 
-  // Derive title from filename if the user uploaded with a meaningful name.
-  const niceTitle = file.name.replace(/\.pdf$/i, "").trim() || `PDF — ${documentId}`;
-
+  // Intentionally NOT setting pdf_title from file.name — multipart FormData
+  // mangles non-ASCII filenames (UTF-8 → Latin-1) depending on the browser,
+  // and we have no reliable way to detect the original encoding server-side.
+  // The viewer falls back to the document's label, which is always correct.
   const { error: updErr } = await supabase
     .from("document_content")
     .upsert(
       {
         document_id: documentId,
         pdf_storage_path: path,
-        pdf_title: niceTitle,
         author_id: profileId,
         ...(pageCount && Number.isFinite(pageCount) ? { pdf_pages: pageCount } : {}),
       },

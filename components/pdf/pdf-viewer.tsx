@@ -9,7 +9,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useWorkbench } from "@/lib/workbench-context";
+import { findNode, useWorkbench } from "@/lib/workbench-context";
 import { uploadPdfAction } from "@/lib/actions/pdf";
 import { cn } from "@/lib/utils";
 
@@ -38,11 +38,18 @@ async function loadPdfjs() {
 }
 
 export function PdfViewer({ nodeId }: Props) {
-  const { content, can } = useWorkbench();
+  const { content, can, tree } = useWorkbench();
   const docContent = content[nodeId];
+  const node = findNode(tree, nodeId);
   const storedPath = docContent?.pdfStoragePath;
   const meta = {
-    title: docContent?.pdfTitle ?? "첨부 PDF",
+    // Prefer an explicit pdf_title only when it looks clean (no Latin-1
+    // mojibake from past multipart uploads); otherwise use the document's
+    // own label, which is always UTF-8 safe.
+    title:
+      (docContent?.pdfTitle && !looksMojibake(docContent.pdfTitle)
+        ? docContent.pdfTitle
+        : node?.label) ?? "첨부 PDF",
     pages: docContent?.pdfPages ?? 1,
   };
   const [mode, setMode] = useState<Mode>("sample");
@@ -326,6 +333,17 @@ export function PdfViewer({ nodeId }: Props) {
       </section>
     </div>
   );
+}
+
+// Heuristic: detect Latin-1-decoded-UTF-8 byte salad. Hangul UTF-8 bytes
+// (0xE0-0xED leading) become characters like á, ı, µ, © when read as Latin-1.
+// If the string is mostly such characters, treat it as garbled.
+function looksMojibake(s: string): boolean {
+  if (!s) return false;
+  const suspicious = /[À-ÿĀ-ſ˜-˝]/g;
+  const matches = s.match(suspicious);
+  if (!matches) return false;
+  return matches.length / s.length > 0.3;
 }
 
 function SamplePage({

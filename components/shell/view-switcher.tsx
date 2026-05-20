@@ -3,6 +3,7 @@
 import {
   BookOpen,
   GraduationCap,
+  HelpCircle,
   LayoutDashboard,
   MessagesSquare,
 } from "lucide-react";
@@ -14,6 +15,7 @@ const VIEWS: { key: Exclude<View, "search">; ko: string; en: string; Icon: typeo
   { key: "doc", ko: "문서", en: "Docs", Icon: BookOpen },
   { key: "dashboard", ko: "대시보드", en: "Dashboard", Icon: LayoutDashboard },
   { key: "cases", ko: "사례", en: "Cases", Icon: MessagesSquare },
+  { key: "faq", ko: "FAQ", en: "FAQ", Icon: HelpCircle },
   { key: "onboarding", ko: "온보딩", en: "Onboarding", Icon: GraduationCap },
 ];
 

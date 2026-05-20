@@ -16,9 +16,11 @@ import TextAlign from "@tiptap/extension-text-align";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { SearchReplace } from "./search-replace-extension";
 import { createMentionExtension } from "./mention-extension";
+import { Callout, CalloutBody, CalloutIcon } from "./extensions/callout";
+import { hydrateBody } from "./body-hydration";
 import { useWorkbench } from "@/lib/workbench-context";
 
 type Props = {
@@ -28,7 +30,46 @@ type Props = {
   onUpdate?: (html: string) => void;
 };
 
-export function DocumentEditor({ content, editable = true, onEditor, onUpdate }: Props) {
+export function DocumentEditor(props: Props) {
+  // Read mode bypasses Tiptap entirely and renders the stored HTML as-is.
+  // Why: the seed/saved body uses custom widgets (.callout, .script-card,
+  // .decision-tree, .checklist, ...) that Tiptap's schema strips when parsing
+  // unless every one of them has a matching Node extension. For read display
+  // we just want the styled output — direct HTML insert is correct and faster.
+  if (!props.editable) {
+    return <ReadOnlyBody content={props.content} onEditor={props.onEditor} />;
+  }
+  return <EditableBody {...props} />;
+}
+
+function ReadOnlyBody({
+  content,
+  onEditor,
+}: {
+  content: string;
+  onEditor?: (editor: Editor | null) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    onEditor?.(null);
+  }, [onEditor]);
+
+  // Re-run hydration whenever the rendered HTML changes.
+  useEffect(() => {
+    return hydrateBody(ref.current);
+  }, [content]);
+
+  return (
+    <div
+      ref={ref}
+      className="doc-prose focus:outline-none min-h-[200px]"
+      dangerouslySetInnerHTML={{ __html: content }}
+    />
+  );
+}
+
+function EditableBody({ content, onEditor, onUpdate }: Props) {
   const { members } = useWorkbench();
   const extensions = useMemo(
     () => [
@@ -56,6 +97,9 @@ export function DocumentEditor({ content, editable = true, onEditor, onUpdate }:
       TaskList.configure({ HTMLAttributes: { class: "task-list" } }),
       TaskItem.configure({ nested: true, HTMLAttributes: { class: "task-item" } }),
       SearchReplace,
+      Callout,
+      CalloutIcon,
+      CalloutBody,
       createMentionExtension(members),
     ],
     [members],
@@ -64,7 +108,7 @@ export function DocumentEditor({ content, editable = true, onEditor, onUpdate }:
   const editor = useEditor({
     extensions,
     content,
-    editable,
+    editable: true,
     immediatelyRender: false,
     editorProps: {
       attributes: {
@@ -87,10 +131,6 @@ export function DocumentEditor({ content, editable = true, onEditor, onUpdate }:
       editor.commands.setContent(content, { emitUpdate: false });
     }
   }, [content, editor]);
-
-  useEffect(() => {
-    editor?.setEditable(editable);
-  }, [editable, editor]);
 
   return <EditorContent editor={editor} />;
 }

@@ -11,6 +11,7 @@ import { SearchView } from "@/components/shell/search-view";
 import { KeyboardShortcuts } from "@/components/shell/keyboard-shortcuts";
 import { DashboardView } from "@/components/views/dashboard-view";
 import { CasesView } from "@/components/views/cases-view";
+import { FaqView } from "@/components/views/faq-view";
 import { OnboardingView } from "@/components/views/onboarding-view";
 
 export default function Home() {
@@ -36,6 +37,7 @@ export default function Home() {
         {view === "search" && <SearchView />}
         {view === "dashboard" && <DashboardView />}
         {view === "cases" && <CasesView />}
+        {view === "faq" && <FaqView />}
         {view === "onboarding" && <OnboardingView />}
         {showThreePane && <RightPanel />}
       </div>

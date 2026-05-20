@@ -11,6 +11,7 @@ import {
 import {
   CASES,
   COMPLIANCE_RECORDS,
+  FAQ_LIST,
   MUST_READ_IDS,
   ONBOARDING_TASKS,
   PAGE_STATS,
@@ -39,6 +40,7 @@ import type {
   Case,
   Comment,
   DocContent,
+  FaqItem,
   Locale,
   NodeStatus,
   OnboardingTask,
@@ -52,7 +54,7 @@ import type {
 } from "./types";
 
 export type Tab = { id: string; pinned: boolean; dirty?: boolean };
-export type View = "doc" | "search" | "dashboard" | "cases" | "onboarding";
+export type View = "doc" | "search" | "dashboard" | "cases" | "onboarding" | "faq";
 export type SaveState = "saved" | "saving";
 export type QuizAnswers = Record<string, Record<number, number>>;
 export type CurrentUser = TeamMember & { email: string };
@@ -73,6 +75,7 @@ type WorkbenchState = {
   content: Record<string, DocContent>;
   cases: Case[];
   onboardingTasks: OnboardingTask[];
+  faqs: FaqItem[];
   members: TeamMember[];
   currentUser: CurrentUser | null;
   pageStats: Record<string, PageStats>;
@@ -176,6 +179,7 @@ export function WorkbenchProvider({
   const [onboardingTasks] = useState<OnboardingTask[]>(
     initialOnboardingTasks ?? ONBOARDING_TASKS,
   );
+  const [faqs] = useState<FaqItem[]>(FAQ_LIST);
   const [members] = useState<TeamMember[]>(initialMembers ?? TEAM_MEMBERS);
   const [currentUser] = useState<CurrentUser | null>(initialCurrentUser ?? null);
   const [pageStats] = useState<Record<string, PageStats>>(
@@ -569,6 +573,7 @@ export function WorkbenchProvider({
       content,
       cases,
       onboardingTasks,
+      faqs,
       members,
       currentUser,
       pageStats,
@@ -628,6 +633,7 @@ export function WorkbenchProvider({
       content,
       cases,
       onboardingTasks,
+      faqs,
       members,
       currentUser,
       pageStats,

@@ -94,6 +94,15 @@ export type OnboardingQuestion = {
   explain: string;
 };
 
+export type FaqItem = {
+  q: string;
+  a: string;
+  confidence: number; // 0..1
+  tags: string[];
+  askedCount: number;
+  sources: { id: string; confidence: number; snippet: string }[];
+};
+
 export type WhatsNewItem = {
   id: string;
   what: string;

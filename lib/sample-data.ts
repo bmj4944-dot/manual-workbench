@@ -2,6 +2,7 @@ import type {
   Case,
   Comment,
   DocContent,
+  FaqItem,
   OnboardingTask,
   PageStats,
   TeamMember,
@@ -230,6 +231,79 @@ export const CASES: Case[] = [
       "고객 자녀·노약자 부상 시 사과·공감이 사실 확인보다 우선",
       "추후 검사 결과가 회사에 유리해도 보상 환수 요구 금지",
     ],
+  },
+];
+
+export const FAQ_LIST: FaqItem[] = [
+  {
+    q: "결제는 됐는데 주문 내역이 안 보여요. 어떻게 해야 하나요?",
+    a: "주문 시점과 결제 카드사를 알려주시면 즉시 결제 상태를 확인해드리겠습니다. 결제는 정상 처리되었으나 시스템 동기화 지연으로 주문 내역 노출이 1~3분 지연될 수 있습니다.",
+    confidence: 0.94,
+    tags: ["결제", "주문"],
+    askedCount: 412,
+    sources: [
+      { id: "ch1-2-1", confidence: 0.94, snippet: "결제 오류 — 1차 안내 스크립트" },
+      { id: "ch3-1-2", confidence: 0.71, snippet: "티켓 생성·이관 절차" },
+    ],
+  },
+  {
+    q: "구매한 지 일주일 됐는데 환불 받을 수 있나요?",
+    a: "구매한 지 7일 이내라면 단순 변심도 환불 가능합니다. 다만 제품을 개봉하셨다면 변심 환불은 50%이며 배송비는 고객 부담입니다. 하자가 있다면 전액 환불 + 배송비 회사 부담입니다.",
+    confidence: 0.96,
+    tags: ["환불", "교환"],
+    askedCount: 387,
+    sources: [
+      { id: "ch1-2-1", confidence: 0.96, snippet: "응대 분기 가이드 — 환불 가능 여부" },
+      { id: "ch2-2-1", confidence: 0.88, snippet: "환불 정책 요약표" },
+    ],
+  },
+  {
+    q: "배송이 너무 늦어요. 언제 도착하나요?",
+    a: "운송장 번호로 즉시 추적해드리고, 예상 도착일을 다시 안내드리겠습니다. 배송 지연으로 불편을 끼쳐 죄송합니다.",
+    confidence: 0.92,
+    tags: ["배송"],
+    askedCount: 298,
+    sources: [
+      { id: "ch1-2-1", confidence: 0.92, snippet: "배송 지연 — 사과 + 추적 스크립트" },
+    ],
+  },
+  {
+    q: "VIP 등급인데 환불이 안 된다고요?",
+    a: "VIP 고객님께도 정중히 안내드리며, 사안에 따라 팀장 결재로 예외 처리가 가능합니다. 즉시 매니저에게 연결해드리겠습니다.",
+    confidence: 0.68,
+    tags: ["VIP", "환불"],
+    askedCount: 47,
+    sources: [
+      { id: "ch2-3-1", confidence: 0.68, snippet: "VIP 등급 구분 (초안)" },
+      { id: "ch2-2-1", confidence: 0.55, snippet: "환불 정책 요약표" },
+    ],
+  },
+  {
+    q: "개인정보가 어떻게 처리되나요?",
+    a: "개인정보는 회원 식별·서비스 제공·민원 처리 목적으로만 사용되며, 회원 탈퇴 시까지 보관됩니다. 거래 기록은 전자상거래법에 따라 5년간 보관됩니다.",
+    confidence: 0.98,
+    tags: ["개인정보", "법무"],
+    askedCount: 156,
+    sources: [{ id: "ch4-1-1", confidence: 0.98, snippet: "개인정보처리방침 v5.0" }],
+  },
+  {
+    q: "제품 사용 중 다쳤어요. 어떻게 처리되나요?",
+    a: "정말 놀라셨겠습니다. 즉시 의료비 선보전 후 제품 회수·검사가 진행됩니다. 안전 관련 사고는 D등급으로 사안별 협의되며 24시간 내 1차 보상이 이뤄집니다.",
+    confidence: 0.91,
+    tags: ["안전사고", "보상"],
+    askedCount: 18,
+    sources: [
+      { id: "ch2-1-4", confidence: 0.91, snippet: "보상 가이드라인 — D등급 적용" },
+      { id: "ch2-1-1", confidence: 0.66, snippet: "1차 진정 단계" },
+    ],
+  },
+  {
+    q: "비밀번호 재설정 메일이 안 와요.",
+    a: "스팸함을 먼저 확인 부탁드립니다. 5분 이상 지연되면 메일 서버 점검일 수 있어 지원팀에서 수동으로 재발송해드릴 수 있습니다.",
+    confidence: 0.42,
+    tags: ["계정", "비밀번호"],
+    askedCount: 89,
+    sources: [{ id: "ch3-1-1", confidence: 0.42, snippet: "로그인 및 기본 설정 (작성중)" }],
   },
 ];
 

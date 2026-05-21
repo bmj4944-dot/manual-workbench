@@ -217,7 +217,16 @@ export function RightPanel() {
     [activeId, node, uploadAttachment],
   );
   useEffect(() => {
-    const hasFiles = (e: DragEvent) => !!e.dataTransfer?.types?.includes("Files");
+    const hasFiles = (e: DragEvent) => {
+      const types = e.dataTransfer?.types;
+      if (!types) return false;
+      // types may be Array or DOMStringList in different browsers
+      try {
+        return Array.from(types as ArrayLike<string>).includes("Files");
+      } catch {
+        return false;
+      }
+    };
     const onEnter = (e: DragEvent) => {
       if (!hasFiles(e)) return;
       pageDragCounter.current++;
@@ -250,19 +259,29 @@ export function RightPanel() {
     };
   }, []);
 
+  const hasFilesReact = (e: React.DragEvent) => {
+    const types = e.dataTransfer?.types;
+    if (!types) return false;
+    try {
+      return Array.from(types as ArrayLike<string>).includes("Files");
+    } catch {
+      return false;
+    }
+  };
   const onPanelDrop = (e: React.DragEvent) => {
-    if (!e.dataTransfer?.types?.includes("Files")) return;
+    if (!hasFilesReact(e)) return;
     e.preventDefault();
     e.stopPropagation();
     setDragOverPage(false);
     pageDragCounter.current = 0;
     if (!canEdit || !node) return;
-    // Auto-jump to outline tab so user sees the progress bars
     if (tab !== "outline") setTab("outline");
-    void handleUploadFiles(e.dataTransfer.files);
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    void handleUploadFiles(files);
   };
   const onPanelDragOver = (e: React.DragEvent) => {
-    if (e.dataTransfer?.types?.includes("Files")) e.preventDefault();
+    if (hasFilesReact(e)) e.preventDefault();
   };
 
   return (

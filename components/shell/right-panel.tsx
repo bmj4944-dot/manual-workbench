@@ -180,6 +180,42 @@ export function RightPanel() {
   const [dragOverPage, setDragOverPage] = useState(false);
   const pageDragCounter = useRef(0);
   const canEdit = can("edit");
+
+  // Upload progress is lifted to the panel so dropping anywhere (overlay or
+  // attach-zone) goes through the same progress UI rendered in AttachmentsSection.
+  const [uploading, setUploading] = useState<Uploading[]>([]);
+  const handleUploadFiles = useCallback(
+    async (files: FileList | File[] | null) => {
+      if (!files || !node) return;
+      const arr = Array.from(files);
+      for (const file of arr) {
+        const tempId = `tmp-${Date.now()}-${Math.random()}`;
+        const kind = kindOf(file.name);
+        setUploading((prev) => [
+          ...prev,
+          { id: tempId, name: file.name, progress: 5, kind },
+        ]);
+        const tick = window.setInterval(() => {
+          setUploading((prev) =>
+            prev.map((u) =>
+              u.id === tempId
+                ? { ...u, progress: Math.min(90, u.progress + 7) }
+                : u,
+            ),
+          );
+        }, 120);
+        try {
+          await uploadAttachment(activeId, file);
+        } catch (err) {
+          console.error("uploadAttachment failed", err);
+        } finally {
+          window.clearInterval(tick);
+          setUploading((prev) => prev.filter((u) => u.id !== tempId));
+        }
+      }
+    },
+    [activeId, node, uploadAttachment],
+  );
   useEffect(() => {
     const hasFiles = (e: DragEvent) => !!e.dataTransfer?.types?.includes("Files");
     const onEnter = (e: DragEvent) => {
@@ -214,21 +250,16 @@ export function RightPanel() {
     };
   }, []);
 
-  const onPanelDrop = async (e: React.DragEvent) => {
+  const onPanelDrop = (e: React.DragEvent) => {
     if (!e.dataTransfer?.types?.includes("Files")) return;
     e.preventDefault();
     e.stopPropagation();
     setDragOverPage(false);
     pageDragCounter.current = 0;
     if (!canEdit || !node) return;
-    const files = Array.from(e.dataTransfer.files ?? []);
-    for (const f of files) {
-      try {
-        await uploadAttachment(activeId, f);
-      } catch (err) {
-        console.error("panel drop upload failed", err);
-      }
-    }
+    // Auto-jump to outline tab so user sees the progress bars
+    if (tab !== "outline") setTab("outline");
+    void handleUploadFiles(e.dataTransfer.files);
   };
   const onPanelDragOver = (e: React.DragEvent) => {
     if (e.dataTransfer?.types?.includes("Files")) e.preventDefault();
@@ -307,6 +338,8 @@ export function RightPanel() {
               <AttachmentsSection
                 nodeId={activeId}
                 attachments={nodeAttachments}
+                uploading={uploading}
+                onUploadFiles={handleUploadFiles}
               />
             )}
 
@@ -558,48 +591,23 @@ type Uploading = { id: string; name: string; progress: number; kind: string };
 function AttachmentsSection({
   nodeId,
   attachments,
+  uploading,
+  onUploadFiles,
 }: {
   nodeId: string;
   attachments: Attachment[];
+  uploading: Uploading[];
+  onUploadFiles: (files: FileList | File[] | null) => Promise<void>;
 }) {
-  const { uploadAttachment, deleteAttachment, can } = useWorkbench();
+  const { deleteAttachment, can } = useWorkbench();
   const inputRef = useRef<HTMLInputElement>(null);
   const dragCounter = useRef(0);
   const [over, setOver] = useState(false);
-  const [uploading, setUploading] = useState<Uploading[]>([]);
   const canEdit = can("edit");
 
   const handleFiles = useCallback(
-    async (files: FileList | File[] | null) => {
-      if (!files) return;
-      const arr = Array.from(files);
-      for (const file of arr) {
-        const tempId = `tmp-${Date.now()}-${Math.random()}`;
-        const kind = kindOf(file.name);
-        setUploading((prev) => [
-          ...prev,
-          { id: tempId, name: file.name, progress: 5, kind },
-        ]);
-        const tick = window.setInterval(() => {
-          setUploading((prev) =>
-            prev.map((u) =>
-              u.id === tempId
-                ? { ...u, progress: Math.min(90, u.progress + 7) }
-                : u,
-            ),
-          );
-        }, 120);
-        try {
-          await uploadAttachment(nodeId, file);
-        } catch (err) {
-          console.error("uploadAttachment failed", err);
-        } finally {
-          window.clearInterval(tick);
-          setUploading((prev) => prev.filter((u) => u.id !== tempId));
-        }
-      }
-    },
-    [nodeId, uploadAttachment],
+    (files: FileList | File[] | null) => onUploadFiles(files),
+    [onUploadFiles],
   );
 
   const onDragEnter = (e: React.DragEvent) => {

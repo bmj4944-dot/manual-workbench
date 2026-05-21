@@ -41,8 +41,10 @@ import {
   uploadAttachmentAction,
 } from "./actions/attachments";
 import {
+  addSiblingAction,
   createDocumentAction,
   deleteDocumentAction,
+  duplicateDocumentAction,
   moveDocumentAction,
   renameDocumentAction,
 } from "./actions/documents-crud";
@@ -138,6 +140,8 @@ type WorkbenchState = {
   uploadAttachment: (nodeId: string, file: File) => Promise<void>;
   deleteAttachment: (nodeId: string, attachmentId: string) => Promise<void>;
   createTreeNode: (parentId: string | null, kind: "chapter" | "section" | "item", label?: string) => Promise<void>;
+  addSibling: (refId: string) => Promise<void>;
+  duplicateTreeNode: (id: string) => Promise<void>;
   renameTreeNode: (id: string, label: string) => Promise<void>;
   deleteTreeNode: (id: string) => Promise<void>;
   moveTreeNode: (id: string, dir: -1 | 1) => Promise<void>;
@@ -175,6 +179,24 @@ function removeTreeAndReturn(
     }
   }
   return out;
+}
+
+function insertAfterId(
+  nodes: TreeNode[],
+  refId: string,
+  newNode: TreeNode,
+): TreeNode[] {
+  const idx = nodes.findIndex((n) => n.id === refId);
+  if (idx !== -1) {
+    const next = [...nodes];
+    next.splice(idx + 1, 0, newNode);
+    return next;
+  }
+  return nodes.map((n) =>
+    n.children
+      ? { ...n, children: insertAfterId(n.children, refId, newNode) }
+      : n,
+  );
 }
 
 function swapSibling(
@@ -650,6 +672,27 @@ export function WorkbenchProvider({
     [role],
   );
 
+  const addSibling = useCallback(
+    async (refId: string) => {
+      if (!ROLE_PERMISSIONS[role].includes("edit"))
+        throw new Error("편집 권한이 없습니다.");
+      const created = await addSiblingAction(refId);
+      // Insert after refId in same parent's children
+      setTree((prev) => insertAfterId(prev, refId, created));
+    },
+    [role],
+  );
+
+  const duplicateTreeNode = useCallback(
+    async (id: string) => {
+      if (!ROLE_PERMISSIONS[role].includes("edit"))
+        throw new Error("편집 권한이 없습니다.");
+      const created = await duplicateDocumentAction(id);
+      setTree((prev) => insertAfterId(prev, id, created));
+    },
+    [role],
+  );
+
   const renameTreeNode = useCallback(
     async (id: string, label: string) => {
       const trimmed = label.trim();
@@ -808,6 +851,8 @@ export function WorkbenchProvider({
       uploadAttachment,
       deleteAttachment,
       createTreeNode,
+      addSibling,
+      duplicateTreeNode,
       renameTreeNode,
       deleteTreeNode,
       moveTreeNode,
@@ -866,6 +911,8 @@ export function WorkbenchProvider({
       uploadAttachment,
       deleteAttachment,
       createTreeNode,
+      addSibling,
+      duplicateTreeNode,
       renameTreeNode,
       deleteTreeNode,
       moveTreeNode,

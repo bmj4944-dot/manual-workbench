@@ -8,13 +8,14 @@ import {
   ChevronUp,
   File as FileIcon,
   FileText,
+  Layers,
   MessageCircle,
   MoreHorizontal,
   Pencil,
   Plus,
   ShieldAlert,
   Star,
-  Trash2,
+  X,
 } from "lucide-react";
 import { useWorkbench } from "@/lib/workbench-context";
 import type { TreeNode } from "@/lib/types";
@@ -242,7 +243,13 @@ function ContextMenu({
   menu: MenuState;
   onClose: () => void;
 }) {
-  const { createTreeNode, deleteTreeNode, moveTreeNode } = useWorkbench();
+  const {
+    createTreeNode,
+    addSibling,
+    duplicateTreeNode,
+    deleteTreeNode,
+    moveTreeNode,
+  } = useWorkbench();
   const { x, y, node, startEdit } = menu;
 
   useEffect(() => {
@@ -262,7 +269,14 @@ function ContextMenu({
       ? "item"
       : null;
   const childLabel =
-    node.type === "chapter" ? "절 추가" : node.type === "section" ? "항목 추가" : "";
+    node.type === "chapter" ? "절 추가" : node.type === "section" ? "항목 추가" : null;
+
+  const siblingLabel =
+    node.type === "chapter"
+      ? "새 장 추가"
+      : node.type === "section"
+      ? "새 절 추가"
+      : "새 항목 추가";
 
   const onDelete = () => {
     if (!confirm(`"${node.label}"을(를) 삭제할까요? 하위 항목도 함께 삭제됩니다.`))
@@ -284,24 +298,34 @@ function ContextMenu({
   if (childKind) {
     items.push({
       icon: <Plus size={12} />,
-      label: childLabel,
+      label: childLabel!,
       onClick: () => createTreeNode(node.id, childKind),
     });
   }
+  items.push({
+    icon: <Plus size={12} />,
+    label: siblingLabel,
+    onClick: () => addSibling(node.id),
+  });
+  items.push({
+    icon: <Layers size={12} />,
+    label: "복제",
+    onClick: () => duplicateTreeNode(node.id),
+  });
   items.push("sep");
   items.push({
     icon: <ChevronUp size={12} />,
-    label: "위로 이동",
+    label: "위로",
     onClick: () => moveTreeNode(node.id, -1),
   });
   items.push({
     icon: <ChevronDown size={12} />,
-    label: "아래로 이동",
+    label: "아래로",
     onClick: () => moveTreeNode(node.id, 1),
   });
   items.push("sep");
   items.push({
-    icon: <Trash2 size={12} />,
+    icon: <X size={12} />,
     label: "삭제",
     onClick: onDelete,
     danger: true,

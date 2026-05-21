@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
 import type { Attachment, Case, Comment, Version } from "@/lib/types";
 
@@ -139,6 +139,8 @@ export function RightPanel() {
     content: contentMap,
     cases,
     attachments,
+    uploadAttachment,
+    can,
   } = useWorkbench();
   const [tab, setTab] = useState<Tab>("outline");
   const node = findNode(tree, activeId);
@@ -172,8 +174,85 @@ export function RightPanel() {
 
   const unresolvedCount = list.filter((c) => !c.resolved).length;
 
+  // ─── Page-wide file drag detection ───
+  // When user drags files from OS anywhere over the window, show overlay hint
+  // in the right panel. Drop is accepted anywhere on the panel itself.
+  const [dragOverPage, setDragOverPage] = useState(false);
+  const pageDragCounter = useRef(0);
+  const canEdit = can("edit");
+  useEffect(() => {
+    const hasFiles = (e: DragEvent) => !!e.dataTransfer?.types?.includes("Files");
+    const onEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      pageDragCounter.current++;
+      setDragOverPage(true);
+    };
+    const onLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      pageDragCounter.current--;
+      if (pageDragCounter.current <= 0) {
+        setDragOverPage(false);
+        pageDragCounter.current = 0;
+      }
+    };
+    const onDropWin = () => {
+      pageDragCounter.current = 0;
+      setDragOverPage(false);
+    };
+    const onDragOver = (e: DragEvent) => {
+      if (hasFiles(e)) e.preventDefault();
+    };
+    window.addEventListener("dragenter", onEnter);
+    window.addEventListener("dragleave", onLeave);
+    window.addEventListener("drop", onDropWin);
+    window.addEventListener("dragover", onDragOver);
+    return () => {
+      window.removeEventListener("dragenter", onEnter);
+      window.removeEventListener("dragleave", onLeave);
+      window.removeEventListener("drop", onDropWin);
+      window.removeEventListener("dragover", onDragOver);
+    };
+  }, []);
+
+  const onPanelDrop = async (e: React.DragEvent) => {
+    if (!e.dataTransfer?.types?.includes("Files")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverPage(false);
+    pageDragCounter.current = 0;
+    if (!canEdit || !node) return;
+    const files = Array.from(e.dataTransfer.files ?? []);
+    for (const f of files) {
+      try {
+        await uploadAttachment(activeId, f);
+      } catch (err) {
+        console.error("panel drop upload failed", err);
+      }
+    }
+  };
+  const onPanelDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer?.types?.includes("Files")) e.preventDefault();
+  };
+
   return (
-    <aside className="rpanel" style={{ position: "relative" }}>
+    <aside
+      className="rpanel"
+      style={{ position: "relative" }}
+      onDragOver={onPanelDragOver}
+      onDrop={onPanelDrop}
+    >
+      {dragOverPage && canEdit && tab === "outline" && (
+        <div className="attach-overlay">
+          <div style={{ textAlign: "center" }}>
+            <div>{locale === "ko" ? "파일을 첨부하려면" : "To attach files"}</div>
+            <div className="ms">
+              {locale === "ko"
+                ? "우측 패널 어디든 놓으세요 ↗"
+                : "Drop anywhere on the right panel ↗"}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="rp-tabs">
         <button
           type="button"

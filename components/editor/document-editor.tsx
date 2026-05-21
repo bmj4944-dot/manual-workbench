@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { hydrateBody } from "./body-hydration";
+import { EMBED_KEYS, hydrateBody } from "./body-hydration";
 import { useWorkbench } from "@/lib/workbench-context";
 import type { TeamMember } from "@/lib/types";
 
@@ -453,9 +453,10 @@ export function DocumentEditor({
   };
 
   const insertEmbed = () => {
+    const list = EMBED_KEYS.join("\n");
     const key = window.prompt(
-      "임베드 키 (예: ticket-CRM-3201)",
-      "ticket-CRM-3201",
+      `임베드 키를 선택하세요:\n${list}`,
+      EMBED_KEYS[0],
     );
     if (!key) return;
     insertHTML(

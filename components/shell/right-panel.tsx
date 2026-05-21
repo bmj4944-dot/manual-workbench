@@ -1,23 +1,134 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
-import {
-  Clock,
-  Download,
-  List as ListIcon,
-  MessageCircle,
-  Send,
-  Sparkles,
-  Upload,
-  X,
-} from "lucide-react";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
 import type { Attachment, Case, Comment, Version } from "@/lib/types";
-import { t } from "@/lib/i18n";
-import { cn } from "@/lib/utils";
 
 type Tab = "outline" | "comments" | "history";
 
+// ─────────────────────────────────────────────────────────────────
+// Inline SVG icons (matches the original handoff exactly)
+// ─────────────────────────────────────────────────────────────────
+function IcList({ size = 11 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="3" y1="3.5" x2="11" y2="3.5" />
+      <line x1="3" y1="7" x2="11" y2="7" />
+      <line x1="3" y1="10.5" x2="11" y2="10.5" />
+    </svg>
+  );
+}
+function IcMsg({ size = 11 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 8a2 2 0 0 1-2 2H5l-3 3V4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+function IcClock({ size = 11 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="7" cy="7" r="5" />
+      <polyline points="7 4 7 7 9 8.5" />
+    </svg>
+  );
+}
+function IcSparkle({ size = 11 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 14 14"
+      fill="currentColor"
+    >
+      <path d="M7 1L8 5 12 6 8 7 7 11 6 7 2 6 6 5 Z" />
+    </svg>
+  );
+}
+function IcDownload({ size = 12 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 9v2.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V9" />
+      <polyline points="4.5 5.5 7 8 9.5 5.5" />
+      <line x1="7" y1="8" x2="7" y2="1.5" />
+    </svg>
+  );
+}
+function IcClose({ size = 11 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="3.5" y1="3.5" x2="10.5" y2="10.5" />
+      <line x1="10.5" y1="3.5" x2="3.5" y2="10.5" />
+    </svg>
+  );
+}
+function IcUploadBig({ size = 22 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="17 8 12 3 7 8" />
+      <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+// RightPanel
+// ─────────────────────────────────────────────────────────────────
 export function RightPanel() {
   const {
     tree,
@@ -39,11 +150,10 @@ export function RightPanel() {
     () => cases.filter((c) => c.linkedSection === activeId),
     [cases, activeId],
   );
+  const isPdf = content?.type === "pdf";
 
-  // Outline derived from the stored body HTML — no live DOM observer to
-  // avoid the MutationObserver↔setState↔re-render loop that froze the page.
-  // Editor changes go through onUpdate→setBody and end up in content.body,
-  // so this useMemo updates as you type (debounced via setBody).
+  // Outline derived from stored body HTML — no live MutationObserver to avoid
+  // observer→setState→re-render loop that hung the page previously.
   const outline = useMemo(() => {
     const html = content?.body ?? "";
     const out: { level: number; text: string; id: string }[] = [];
@@ -63,21 +173,21 @@ export function RightPanel() {
   const unresolvedCount = list.filter((c) => !c.resolved).length;
 
   return (
-    <aside className="rpanel">
+    <aside className="rpanel" style={{ position: "relative" }}>
       <div className="rp-tabs">
         <button
           type="button"
           className={tab === "outline" ? "on" : ""}
           onClick={() => setTab("outline")}
         >
-          <ListIcon size={11} /> {t(locale, "outline")}
+          <IcList /> {locale === "ko" ? "아웃라인" : "Outline"}
         </button>
         <button
           type="button"
           className={tab === "comments" ? "on" : ""}
           onClick={() => setTab("comments")}
         >
-          <MessageCircle size={11} /> {t(locale, "comments")}
+          <IcMsg /> {locale === "ko" ? "댓글" : "Comments"}
           {unresolvedCount > 0 && (
             <span
               style={{
@@ -101,16 +211,14 @@ export function RightPanel() {
           className={tab === "history" ? "on" : ""}
           onClick={() => setTab("history")}
         >
-          <Clock size={11} /> {t(locale, "history")}
+          <IcClock /> {locale === "ko" ? "히스토리" : "History"}
         </button>
       </div>
 
       <div className="rp-body">
         {tab === "outline" && (
           <div>
-            {node && content?.body && content?.type !== "pdf" && (
-              <AISummaryCard nodeLabel={node.label} />
-            )}
+            {node && content?.body && !isPdf && <AISummary nodeId={activeId} />}
 
             {node && relatedCases.length > 0 && (
               <RelatedCases cases={relatedCases} />
@@ -124,7 +232,7 @@ export function RightPanel() {
             )}
 
             <div className="meta-section">
-              <h4>{t(locale, "tags")}</h4>
+              <h4>{locale === "ko" ? "태그" : "Tags"}</h4>
               <div className="tags-row">
                 {(content?.tags ?? []).map((tg) => (
                   <span key={tg} className="tg">
@@ -141,7 +249,7 @@ export function RightPanel() {
             </div>
 
             <div className="meta-section">
-              <h4>{t(locale, "outline")}</h4>
+              <h4>{locale === "ko" ? "아웃라인" : "Outline"}</h4>
               <div className="outline">
                 {outline.length === 0 ? (
                   <div style={{ fontSize: 12, color: "var(--ink-3)" }}>—</div>
@@ -168,86 +276,178 @@ export function RightPanel() {
           </div>
         )}
 
-        {tab === "comments" && (
-          <CommentsTab nodeId={activeId} list={list} />
-        )}
-
-        {tab === "history" && (
-          <HistoryTab nodeId={activeId} versions={versions} />
-        )}
+        {tab === "comments" && <CommentsTab nodeId={activeId} list={list} />}
+        {tab === "history" && <HistoryTab nodeId={activeId} versions={versions} />}
       </div>
     </aside>
   );
 }
 
-// ─── AI Summary ──────────────────────────────────────────────────────
-function AISummaryCard({ nodeLabel }: { nodeLabel?: string }) {
+// ─── AI Summary (matches assist.jsx — 3 states) ────────────────────
+function AISummary({ nodeId }: { nodeId: string }) {
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">(
+    "idle",
+  );
+  const [summary, setSummary] = useState<string>("");
+  const [error, setError] = useState<string>("");
+
+  // Reset on node change
+  const lastNodeId = useRef(nodeId);
+  if (lastNodeId.current !== nodeId) {
+    lastNodeId.current = nodeId;
+    if (state !== "idle") {
+      setState("idle");
+      setSummary("");
+      setError("");
+    }
+  }
+
+  const generate = async () => {
+    setState("loading");
+    setError("");
+    // Placeholder: no Claude API on this side yet; show a simulated result.
+    setTimeout(() => {
+      setSummary(
+        "이 문서는 핵심 원칙과 절차를 정리한 가이드입니다. 실무에서 자주 발생하는 상황을 기준으로 권장 응대 방식과 피해야 할 표현을 명시했습니다. 워크플로우 단계에 따라 활용해주세요.",
+      );
+      setState("done");
+    }, 1200);
+  };
+
   return (
     <div className="ai-summary">
       <div className="as-hd">
-        <Sparkles size={11} /> AI 요약
+        <IcSparkle />
+        AI 요약
       </div>
-      <div className="as-body" style={{ marginBottom: 6 }}>
-        {nodeLabel
-          ? "이 문서의 핵심을 3~4문장으로 요약해드립니다."
-          : "문서를 선택해주세요."}
-      </div>
-      <button type="button" className="as-gen-btn">
-        <Sparkles size={11} /> 요약 생성
-      </button>
+      {state === "idle" && (
+        <div>
+          <div
+            style={{
+              fontSize: 12.5,
+              color: "var(--ink-2)",
+              marginBottom: 8,
+              lineHeight: 1.5,
+            }}
+          >
+            이 문서의 핵심을 3~4문장으로 요약해드립니다.
+          </div>
+          <button
+            type="button"
+            onClick={generate}
+            style={{
+              padding: "6px 12px",
+              background: "oklch(0.55 0.15 290)",
+              color: "white",
+              border: 0,
+              borderRadius: 6,
+              font: "inherit",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            ✨ 요약 생성
+          </button>
+        </div>
+      )}
+      {state === "loading" && (
+        <div className="as-loading">
+          요약 생성 중
+          <span className="dots">
+            <span />
+            <span />
+            <span />
+          </span>
+        </div>
+      )}
+      {state === "error" && (
+        <div style={{ color: "oklch(0.55 0.18 25)", fontSize: 12.5 }}>
+          {error}
+        </div>
+      )}
+      {state === "done" && (
+        <>
+          <div className="as-body">{summary}</div>
+          <div className="as-actions">
+            <button onClick={generate}>↻ 다시 생성</button>
+            <button
+              onClick={() => navigator.clipboard?.writeText(summary)}
+            >
+              📋 복사
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
-// ─── Related Cases ───────────────────────────────────────────────────
-const RESULT_LABEL: Record<
+// ─── Related Cases (matches assist.jsx) ──────────────────────────
+const RC_LABEL: Record<
   Case["result"],
-  { ko: string; cls: string }
+  { ko: string; color: string; bg: string }
 > = {
-  good: { ko: "우수", cls: "good" },
-  bad: { ko: "실패", cls: "bad" },
-  mixed: { ko: "복합", cls: "mixed" },
+  good: {
+    ko: "우수",
+    color: "oklch(0.40 0.13 145)",
+    bg: "oklch(0.94 0.07 145)",
+  },
+  bad: {
+    ko: "실패",
+    color: "oklch(0.45 0.16 25)",
+    bg: "oklch(0.95 0.06 25)",
+  },
+  mixed: {
+    ko: "복합",
+    color: "oklch(0.40 0.14 65)",
+    bg: "oklch(0.94 0.07 65)",
+  },
 };
 
 function RelatedCases({ cases }: { cases: Case[] }) {
   const { setView } = useWorkbench();
   return (
-    <div className="related-cases meta-section">
+    <div className="meta-section related-cases">
       <h4>관련 응대 사례 ({cases.length})</h4>
-      {cases.map((c) => (
-        <div
-          key={c.id}
-          className="rc-card"
-          onClick={() => setView("cases")}
-          style={{ cursor: "pointer" }}
-        >
-          <div className="rc-hd">
-            <span className={cn("res-pill", RESULT_LABEL[c.result].cls)}>
-              {RESULT_LABEL[c.result].ko}
-            </span>
-            <span className="rc-id">{c.id}</span>
+      {cases.map((c) => {
+        const r = RC_LABEL[c.result] ?? RC_LABEL.mixed;
+        return (
+          <div
+            key={c.id}
+            className="rc-card"
+            onClick={() => setView("cases")}
+          >
+            <div className="rc-hd">
+              <span
+                className="res-pill"
+                style={{ background: r.bg, color: r.color }}
+              >
+                {r.ko}
+              </span>
+              <span className="rc-id">{c.id}</span>
+            </div>
+            <div className="rc-ti">{c.title}</div>
+            <div className="rc-meta">
+              {c.agent.name} · {c.date} · {c.duration}
+            </div>
           </div>
-          <div className="rc-ti">{c.title}</div>
-          <div className="rc-meta">
-            <span>{c.agent.name}</span>
-            <span>·</span>
-            <span>{c.date}</span>
-            <span>·</span>
-            <span>{c.duration}</span>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-// ─── Attachments helpers ─────────────────────────────────────────────
+// ─── Attachments helpers (matches attachments.jsx) ───────────────
 const FILE_KINDS: Record<string, { exts: string[]; label: string }> = {
   pdf: { exts: ["pdf"], label: "PDF" },
   doc: { exts: ["doc", "docx", "rtf", "odt", "hwp", "hwpx"], label: "DOC" },
   xls: { exts: ["xls", "xlsx", "ods"], label: "XLS" },
   ppt: { exts: ["ppt", "pptx", "odp", "key"], label: "PPT" },
-  img: { exts: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"], label: "IMG" },
+  img: {
+    exts: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"],
+    label: "IMG",
+  },
   zip: { exts: ["zip", "rar", "7z", "tar", "gz"], label: "ZIP" },
   csv: { exts: ["csv", "tsv"], label: "CSV" },
   txt: { exts: ["txt", "md", "log"], label: "TXT" },
@@ -396,10 +596,10 @@ function AttachmentsSection({
 
       {canEdit && (
         <div
-          className={cn("attach-zone", over && "over")}
+          className={`attach-zone${over ? " over" : ""}`}
           onClick={() => inputRef.current?.click()}
         >
-          <Upload className="ico-big" size={22} />
+          <IcUploadBig />
           <div className="ti">
             {over ? "여기에 놓으세요" : "파일을 끌어다 놓거나 클릭"}
           </div>
@@ -420,7 +620,7 @@ function AttachmentsSection({
 
       {uploading.map((u) => (
         <div key={u.id} className="attachment uploading">
-          <div className={cn("file-ico", u.kind)}>{kindLabel(u.kind)}</div>
+          <div className={`file-ico ${u.kind}`}>{kindLabel(u.kind)}</div>
           <div className="at-body">
             <div className="at-name">{u.name}</div>
             <div className="at-meta">업로드 중... {u.progress}%</div>
@@ -446,16 +646,13 @@ function AttachmentsSection({
         attachments.map((a) => {
           const kind = kindOf(a.fileName);
           return (
-            <a
+            <div
               key={a.id}
-              href={`/api/attachments/${a.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
               className="attachment"
               title={a.fileName}
-              style={{ textDecoration: "none", color: "inherit" }}
+              onClick={() => window.open(`/api/attachments/${a.id}`, "_blank")}
             >
-              <div className={cn("file-ico", kind)}>{kindLabel(kind)}</div>
+              <div className={`file-ico ${kind}`}>{kindLabel(kind)}</div>
               <div className="at-body">
                 <div className="at-name">{a.fileName}</div>
                 <div className="at-meta">
@@ -468,11 +665,11 @@ function AttachmentsSection({
                   type="button"
                   title="다운로드"
                   onClick={(e) => {
-                    e.preventDefault();
+                    e.stopPropagation();
                     window.open(`/api/attachments/${a.id}`, "_blank");
                   }}
                 >
-                  <Download size={12} />
+                  <IcDownload />
                 </button>
                 {canEdit && (
                   <button
@@ -480,15 +677,15 @@ function AttachmentsSection({
                     className="danger"
                     title="삭제"
                     onClick={(e) => {
-                      e.preventDefault();
+                      e.stopPropagation();
                       onDelete(a);
                     }}
                   >
-                    <X size={12} />
+                    <IcClose />
                   </button>
                 )}
               </div>
-            </a>
+            </div>
           );
         })
       )}
@@ -496,7 +693,7 @@ function AttachmentsSection({
   );
 }
 
-// ─── Comments tab ────────────────────────────────────────────────────
+// ─── Comments tab (matches manual2 right-panel.jsx) ─────────────
 function CommentsTab({
   nodeId,
   list,
@@ -506,19 +703,26 @@ function CommentsTab({
 }) {
   const { addComment, resolveComment } = useWorkbench();
   const [draft, setDraft] = useState("");
+  const [composerOpen, setComposerOpen] = useState(false);
 
   return (
     <div className="comments">
       {list.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "40px 0", color: "var(--ink-3)" }}>
-          <MessageCircle size={24} style={{ opacity: 0.4 }} />
+        <div
+          style={{
+            textAlign: "center",
+            padding: "40px 0",
+            color: "var(--ink-3)",
+          }}
+        >
+          <IcMsg size={24} />
           <div style={{ marginTop: 8, fontSize: 12 }}>
             아직 댓글이 없습니다.
           </div>
         </div>
       ) : (
         list.map((c) => (
-          <div key={c.id} className={cn("c-item", c.resolved && "resolved")}>
+          <div key={c.id} className={`c-item${c.resolved ? " resolved" : ""}`}>
             <div className="c-hd">
               <div className="av" style={{ background: c.color }}>
                 {c.initials}
@@ -528,6 +732,7 @@ function CommentsTab({
             </div>
             <div className="c-body">{c.body}</div>
             <div className="c-actions">
+              <button onClick={() => setComposerOpen(true)}>답글</button>
               <button onClick={() => resolveComment(nodeId, c.id)}>
                 {c.resolved ? "해결됨 ✓" : "해결"}
               </button>
@@ -536,62 +741,104 @@ function CommentsTab({
         ))
       )}
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          addComment(nodeId, draft);
-          setDraft("");
-        }}
-        style={{
-          marginTop: 10,
-          padding: 10,
-          borderRadius: 8,
-          background: "var(--panel)",
-          border: "1px solid var(--line)",
-        }}
-      >
-        <textarea
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="댓글 — @이름으로 멤버 멘션"
-          rows={3}
+      {!composerOpen ? (
+        <button
+          type="button"
+          onClick={() => setComposerOpen(true)}
           style={{
             width: "100%",
-            border: 0,
+            padding: "10px 12px",
             background: "transparent",
-            outline: "none",
+            border: "1px dashed var(--line-2)",
+            borderRadius: 8,
+            color: "var(--ink-3)",
+            cursor: "pointer",
             font: "inherit",
             fontSize: 12.5,
-            resize: "none",
-            color: "var(--ink)",
+            marginTop: 8,
           }}
-        />
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button
-            type="submit"
-            disabled={!draft.trim()}
+        >
+          + 댓글 남기기
+        </button>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const trimmed = draft.trim();
+            if (!trimmed) return;
+            addComment(nodeId, trimmed);
+            setDraft("");
+            setComposerOpen(false);
+          }}
+          style={{
+            marginTop: 8,
+            padding: 10,
+            borderRadius: 8,
+            background: "var(--panel)",
+            border: "1px solid var(--line)",
+          }}
+        >
+          <textarea
+            autoFocus
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="댓글 — @이름으로 멤버 멘션"
+            rows={3}
             style={{
-              padding: "5px 12px",
-              borderRadius: 5,
+              width: "100%",
               border: 0,
-              background: "var(--accent)",
-              color: "white",
-              fontSize: 11.5,
-              fontWeight: 500,
-              cursor: draft.trim() ? "pointer" : "not-allowed",
-              opacity: draft.trim() ? 1 : 0.5,
+              background: "transparent",
+              outline: "none",
+              font: "inherit",
+              fontSize: 12.5,
+              resize: "none",
+              color: "var(--ink)",
             }}
-          >
-            <Send size={10} style={{ display: "inline", marginRight: 4 }} />
-            게시
-          </button>
-        </div>
-      </form>
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => {
+                setDraft("");
+                setComposerOpen(false);
+              }}
+              style={{
+                padding: "5px 10px",
+                borderRadius: 5,
+                border: "1px solid var(--line)",
+                background: "var(--panel)",
+                color: "var(--ink-3)",
+                fontSize: 11.5,
+                cursor: "pointer",
+              }}
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={!draft.trim()}
+              style={{
+                padding: "5px 12px",
+                borderRadius: 5,
+                border: 0,
+                background: "var(--accent)",
+                color: "white",
+                fontSize: 11.5,
+                fontWeight: 500,
+                cursor: draft.trim() ? "pointer" : "not-allowed",
+                opacity: draft.trim() ? 1 : 0.5,
+              }}
+            >
+              게시
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
 
-// ─── History tab ─────────────────────────────────────────────────────
+// ─── History tab (matches manual2 right-panel.jsx) ──────────────
 function HistoryTab({
   nodeId,
   versions,
@@ -603,12 +850,27 @@ function HistoryTab({
   return (
     <div className="history">
       {versions.length === 0 && (
-        <p style={{ fontSize: 12, color: "var(--ink-3)" }}>
-          아직 저장된 버전이 없습니다.
-        </p>
+        <div
+          style={{
+            textAlign: "center",
+            padding: "40px 0",
+            color: "var(--ink-3)",
+          }}
+        >
+          <IcClock size={24} />
+          <div style={{ marginTop: 8, fontSize: 12 }}>
+            아직 저장된 버전이 없습니다.
+          </div>
+        </div>
       )}
       {versions.map((v, i) => (
-        <div key={v.id} className={cn("h-item", i === 0 && "current")}>
+        <div
+          key={v.id}
+          className={`h-item${i === 0 ? " current" : ""}`}
+          onClick={() => {
+            if (i > 0 && v.body) restoreVersion(nodeId, v.id);
+          }}
+        >
           <div className="h-dot" />
           <div className="h-body">
             <div className="h-when">{v.when}</div>
@@ -629,24 +891,6 @@ function HistoryTab({
               <div className="h-tag">
                 {v.tag === "approved" ? "승인" : "공개"}
               </div>
-            )}
-            {i > 0 && v.body && (
-              <button
-                type="button"
-                onClick={() => restoreVersion(nodeId, v.id)}
-                style={{
-                  border: "1px solid var(--line)",
-                  background: "var(--bg-2)",
-                  borderRadius: 5,
-                  padding: "2px 8px",
-                  fontSize: 11,
-                  color: "var(--ink-2)",
-                  cursor: "pointer",
-                  marginTop: 6,
-                }}
-              >
-                복원
-              </button>
             )}
           </div>
         </div>

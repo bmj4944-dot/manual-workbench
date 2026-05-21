@@ -56,6 +56,15 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - **임베드 카드 hydration**: CRM 티켓, 상품 카탈로그 (3개 샘플)
 - **로그인 페이지** + Auth callback
 
+### 2026-05-21 추가
+- **브랜드 로고 시각 조정**: 36×36, 그라데이션 `oklch(0.62 0.14 50)→oklch(0.42 0.13 28)`, 텍스트 17px
+- **브랜드 텍스트 왼쪽 정렬**: `.brand` 버튼 기본 `text-align:center` 오버라이드
+- **우측 패널 전체로 첨부 드롭 영역 확장**: window-level drag 감지 + `.attach-overlay` 점선 박스 + panel.onDrop 어디든 업로드
+- **업로드 진행률 상태 상승**: `uploading` state를 RightPanel로 끌어올려 패널 드롭과 attach-zone 드롭이 동일 진행 막대 공유
+- **표 셀 플로팅 툴바 위치 버그 수정**: TableEditorOverlay를 `.doc-body` 안으로 이동 (positioned ancestor 일치)
+- **Server Action 본문 1MB → 10MB**: `next.config.mjs`에 `serverActions.bodySizeLimit` 설정 — 1.8MB 파일 첨부 시 undefined 반환되던 문제 해결
+- **WORK_LOG.md 작성** + 메모리 정착
+
 ---
 
 ## 📋 해야 할 작업
@@ -102,6 +111,17 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 4. **인라인 SVG 우선** — lucide-react보다 manual2 icons.jsx 패턴 (svg 직접 작성)이 더 정확.
 5. **마이그레이션은 사용자가 SQL Editor에서 수동 적용**. CLI 사용 안 함.
 6. **Supabase project ref**: `jlaidnbcbnwjoahgpcxu`
+7. **Next.js Server Action 본문 크기 제한**: 기본 1MB. `next.config.mjs`에서 `experimental.serverActions.bodySizeLimit = "10mb"` 설정해 둠. Vercel 자체 함수 한계가 **4.5MB**이므로 그 이상 파일은 direct-to-Storage signed URL 패턴 필요. 초과 시 action이 throw 없이 **undefined 반환**하므로 디버깅 어려움.
+8. **`position: absolute` 오버레이는 positioned ancestor 안에 렌더**할 것. 좌표 계산 기준과 실제 absolute 기준점이 다르면 화면 엉뚱한 곳에 뜸 (TableEditorOverlay 사례).
+9. **DataTransfer.types**가 일부 브라우저에서 DOMStringList일 수 있음. `.includes`가 없을 수 있으니 `Array.from(types).includes("Files")`로 정규화.
+
+## ⚡️ 성능 (체감 느린 이유 후보)
+
+- **Vercel ↔ Supabase 리전 불일치** 가능성 (가장 큰 단일 요인) — 둘 다 `icn1` / `ap-northeast-2`로 통일하면 호출당 100-300ms 감소
+- **Server Component 워터폴 fetch** — 페이지에서 `lib/data/*` 순차 await → `Promise.all`로 병렬화
+- **캐싱 0** — 정적 데이터(tree/members/cases)는 `unstable_cache`로 묶기
+- **Tiptap 11개 패키지 잔류** — 클라이언트 번들 크기 증가 (E-1)
+- 처방 순서: 리전 → Promise.all → unstable_cache → Tiptap 제거
 
 ---
 

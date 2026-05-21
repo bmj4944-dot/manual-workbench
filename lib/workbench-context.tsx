@@ -616,6 +616,10 @@ export function WorkbenchProvider({
       fd.set("file", file);
       fd.set("name", file.name); // explicit UTF-8 name (avoids multipart 한글 깨짐)
       const created = await uploadAttachmentAction(nodeId, fd);
+      if (!created || !created.fileName) {
+        console.error("uploadAttachmentAction returned invalid payload", created);
+        return;
+      }
       setAttachments((prev) => ({
         ...prev,
         [nodeId]: [created, ...(prev[nodeId] ?? [])],

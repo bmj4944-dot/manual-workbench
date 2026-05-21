@@ -749,7 +749,7 @@ function AttachmentsSection({
           아직 첨부된 파일이 없습니다.
         </div>
       ) : (
-        attachments.map((a) => {
+        attachments.filter((a): a is Attachment => !!a && !!a.fileName).map((a) => {
           const kind = kindOf(a.fileName);
           return (
             <div

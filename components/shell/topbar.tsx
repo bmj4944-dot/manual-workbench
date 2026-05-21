@@ -1,10 +1,20 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { Check, Loader2, LogOut, Moon, Search, Sun } from "lucide-react";
+import {
+  Eye,
+  GraduationCap,
+  HelpCircle,
+  Layers,
+  LogOut,
+  MessagesSquare,
+  Moon,
+  PenLine,
+  Search,
+  Sun,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { NotificationsBell } from "./notifications-popover";
-import { ViewSwitcher } from "./view-switcher";
 import { useEffect, useState } from "react";
 import { useWorkbench, findPath } from "@/lib/workbench-context";
 import { createClient } from "@/lib/supabase/client";
@@ -17,8 +27,6 @@ export function Topbar() {
     tree,
     activeId,
     locale,
-    setLocale,
-    openSearch,
     setPaletteOpen,
     view,
     setView,
@@ -26,11 +34,13 @@ export function Topbar() {
     saveState,
     members,
     currentUser,
+    mode,
+    setMode,
+    searchQuery,
   } = useWorkbench();
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [draft, setDraft] = useState("");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   const onSignOut = async () => {
@@ -46,149 +56,173 @@ export function Topbar() {
     locale === "ko" ? n.label : n.labelEn ?? n.label;
 
   return (
-    <header
-      className="flex items-center gap-3.5 border-b border-line bg-panel px-4"
-      style={{ height: "var(--topbar-h)" }}
-    >
+    <header className="topbar">
       <button
         type="button"
+        className="brand"
         onClick={() => setView("doc")}
-        className="flex items-center gap-2.5"
+        style={{ background: "transparent", border: 0, padding: 0, cursor: "pointer" }}
       >
-        <div
-          className="grid h-[26px] w-[26px] place-items-center rounded-[7px] text-white font-bold text-[13px] font-en shadow-sm"
-          style={{
-            background:
-              "linear-gradient(135deg, var(--accent), oklch(0.45 0.13 30))",
-          }}
-        >
-          M
-        </div>
-        <div className="flex flex-col items-start leading-tight">
-          <span className="font-bold text-[15px] tracking-tighter1">
-            {t(locale, "appName")}
-          </span>
-          <span className="text-[10.5px] font-en font-medium tracking-[0.06em] uppercase text-ink-3">
-            {t(locale, "appSub")}
-          </span>
+        <div className="logo">M</div>
+        <div className="meta">
+          <span>{t(locale, "appName")}</span>
+          <small>{t(locale, "appSub")}</small>
         </div>
       </button>
 
-      <span className="h-[22px] w-px bg-line" />
+      <div className="sep" />
 
-      <ViewSwitcher />
-
-      <span className="h-[22px] w-px bg-line" />
-
-      <nav className="flex min-w-0 items-center gap-1.5 text-[13px] text-ink-3">
-        {view === "search" ? (
-          <span className="text-ink font-medium">전체 검색</span>
-        ) : (
-          path.map((n, i) => (
-            <span key={n.id} className="flex items-center gap-1.5">
-              {i > 0 && <span className="font-en text-ink-4">/</span>}
-              <span
-                className={cn(
-                  "truncate max-w-[240px]",
-                  i === path.length - 1 && "text-ink font-medium",
-                )}
+      {view === "doc" ? (
+        <div className="crumbs">
+          {path.map((n, i) => (
+            <span key={n.id} className="contents">
+              {i > 0 && <span className="slash">/</span>}
+              <button
+                type="button"
+                className={cn("seg", i === path.length - 1 && "current")}
+                style={{ background: "transparent", border: 0, padding: 0, cursor: "pointer" }}
               >
                 {label(n)}
-              </span>
+              </button>
             </span>
-          ))
-        )}
-      </nav>
+          ))}
+        </div>
+      ) : view === "search" ? (
+        <div className="crumbs">
+          <span className="seg current">{locale === "ko" ? "전체 검색" : "Search"}</span>
+          {searchQuery && (
+            <>
+              <span className="slash">/</span>
+              <span className="seg">&quot;{searchQuery}&quot;</span>
+            </>
+          )}
+        </div>
+      ) : view === "dashboard" ? (
+        <div className="crumbs">
+          <span className="seg current">
+            {locale === "ko" ? "관리 대시보드" : "Admin Dashboard"}
+          </span>
+        </div>
+      ) : view === "cases" ? (
+        <div className="crumbs">
+          <span className="seg current">
+            {locale === "ko" ? "응대 사례 라이브러리" : "Case Library"}
+          </span>
+        </div>
+      ) : view === "onboarding" ? (
+        <div className="crumbs">
+          <span className="seg current">
+            {locale === "ko" ? "신입 온보딩" : "Onboarding"}
+          </span>
+        </div>
+      ) : view === "faq" ? (
+        <div className="crumbs">
+          <span className="seg current">FAQ</span>
+        </div>
+      ) : null}
 
-      <div className="flex-1" />
+      <div className="spacer" />
+
+      <button
+        type="button"
+        className={cn("nav-btn", view === "dashboard" && "on")}
+        onClick={() => setView("dashboard")}
+      >
+        <Layers size={11} />
+        {locale === "ko" ? "대시보드" : "Dashboard"}
+      </button>
+      <button
+        type="button"
+        className={cn("nav-btn", view === "cases" && "on")}
+        onClick={() => setView("cases")}
+      >
+        <MessagesSquare size={11} />
+        {locale === "ko" ? "사례" : "Cases"}
+      </button>
+      <button
+        type="button"
+        className={cn("nav-btn", view === "faq" && "on")}
+        onClick={() => setView("faq")}
+      >
+        <HelpCircle size={11} />
+        FAQ
+      </button>
+      <button
+        type="button"
+        className={cn("nav-btn", view === "onboarding" && "on")}
+        onClick={() => setView("onboarding")}
+      >
+        <GraduationCap size={11} />
+        {locale === "ko" ? "온보딩" : "Onboarding"}
+      </button>
 
       <div
-        className={cn(
-          "flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11.5px]",
-          saveState === "saved"
-            ? "border-line bg-surface-2 text-ink-3"
-            : "border-[oklch(0.80_0.12_75/0.6)] bg-[oklch(0.96_0.05_75/0.6)] text-warn",
-        )}
-        title={saveState === "saved" ? "자동 저장됨" : "저장 중..."}
+        className="search"
+        onClick={() => setPaletteOpen(true)}
+        style={{ cursor: "pointer" }}
       >
-        {saveState === "saved" ? (
-          <>
-            <Check size={11} /> 자동 저장됨
-          </>
-        ) : (
-          <>
-            <Loader2 size={11} className="animate-spin" /> 저장 중...
-          </>
-        )}
+        <Search size={12} />
+        <input
+          placeholder={t(locale, "searchPlaceholder")}
+          readOnly
+          onFocus={() => setPaletteOpen(true)}
+        />
+        <kbd>/</kbd>
+        <kbd>⌘K</kbd>
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const q = draft.trim();
-          if (q) {
-            openSearch(q);
-            setDraft("");
-          } else {
-            setPaletteOpen(true);
-          }
-        }}
-        className="flex w-[260px] items-center gap-2 rounded-[var(--radius)] border border-line bg-surface-2 px-2.5 py-1.5 text-ink-3 focus-within:border-accent focus-within:bg-panel"
-      >
-        <Search size={14} />
-        <input
-          type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={t(locale, "searchPlaceholder")}
-          className="min-w-0 flex-1 border-0 bg-transparent text-ink outline-none placeholder:text-ink-4"
-        />
+      <div className="mode-switch">
         <button
           type="button"
-          onClick={() => setPaletteOpen(true)}
-          className="rounded border border-line bg-panel px-1.5 py-px font-en text-[10.5px] text-ink-3 hover:bg-surface-2"
-          title="빠른 이동"
+          className={mode === "edit" ? "on" : ""}
+          onClick={() => setMode("edit")}
         >
-          ⌘K
+          <PenLine size={11} /> {locale === "ko" ? "편집" : "Edit"}
         </button>
-      </form>
+        <button
+          type="button"
+          className={mode === "read" ? "on" : ""}
+          onClick={() => setMode("read")}
+        >
+          <Eye size={11} /> {locale === "ko" ? "읽기" : "Read"}
+        </button>
+      </div>
 
-      <span
-        className="rounded-[var(--radius)] border border-line bg-surface-2 px-2 py-1 text-[12px] font-medium text-ink-2"
-        title="현재 본인의 권한 (관리자가 변경 가능)"
-      >
-        {locale === "ko" ? ROLE_LABELS[role].ko : ROLE_LABELS[role].en}
-      </span>
+      <div className={cn("save-state", saveState === "saving" && "saving")}>
+        <span className="dot" />
+        <span>{saveState === "saving" ? "저장 중..." : "자동 저장됨"}</span>
+      </div>
 
-      <div className="flex">
-        {members.slice(0, 4).map((m, i) => (
-          <span
+      <div className="role-switch" title="현재 본인의 권한">
+        <div
+          className="role-av"
+          style={{ background: currentUser?.color ?? "var(--accent)" }}
+        >
+          {currentUser?.initials ?? "?"}
+        </div>
+        <span>{ROLE_LABELS[role].ko}</span>
+      </div>
+
+      <div className="avatars">
+        {members.slice(0, 3).map((m) => (
+          <div
             key={m.id}
-            className="grid h-[26px] w-[26px] place-items-center rounded-full border-2 border-panel font-en text-[11px] font-semibold text-white"
-            style={{ background: m.color, marginLeft: i === 0 ? 0 : -6 }}
-            title={`${m.name} (${ROLE_LABELS[m.role].ko})`}
+            className="av"
+            style={{ background: m.color }}
+            title={m.name}
           >
             {m.initials}
-          </span>
+          </div>
         ))}
       </div>
 
       <button
         type="button"
-        onClick={() => setLocale(locale === "ko" ? "en" : "ko")}
-        className="rounded-[var(--radius)] border border-line bg-panel px-2.5 py-1 text-[12px] font-medium text-ink-2 hover:bg-surface-2"
-        title={locale === "ko" ? t("ko", "english") : t("en", "korean")}
-      >
-        {locale === "ko" ? "KO" : "EN"}
-      </button>
-
-      <button
-        type="button"
+        className="icon-btn"
         onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-        className="grid h-8 w-8 place-items-center rounded-[7px] border border-line bg-panel text-ink-2 hover:bg-surface-2 hover:text-ink"
         aria-label="Toggle theme"
       >
-        {mounted && resolvedTheme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+        {mounted && resolvedTheme === "dark" ? <Sun size={13} /> : <Moon size={13} />}
       </button>
 
       <NotificationsBell />

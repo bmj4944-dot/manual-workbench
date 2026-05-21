@@ -55,6 +55,7 @@ import type {
 
 export type Tab = { id: string; pinned: boolean; dirty?: boolean };
 export type View = "doc" | "search" | "dashboard" | "cases" | "onboarding" | "faq";
+export type DocMode = "edit" | "read";
 export type SaveState = "saved" | "saving";
 export type QuizAnswers = Record<string, Record<number, number>>;
 export type CurrentUser = TeamMember & { email: string };
@@ -102,6 +103,8 @@ type WorkbenchState = {
   openSearch: (q: string) => void;
   setPaletteOpen: (b: boolean) => void;
   setLocale: (loc: Locale) => void;
+  mode: DocMode;
+  setMode: (m: DocMode) => void;
 
   setRole: (r: Role) => void;
   can: (action: string) => boolean;
@@ -202,6 +205,7 @@ export function WorkbenchProvider({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [paletteOpen, setPaletteOpen] = useState<boolean>(false);
   const [locale, setLocale] = useState<Locale>("ko");
+  const [mode, setMode] = useState<DocMode>("edit");
   const [role, setRole] = useState<Role>(initialCurrentUser?.role ?? "admin");
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [comments, setComments] = useState<Record<string, Comment[]>>(
@@ -599,6 +603,8 @@ export function WorkbenchProvider({
       openSearch,
       setPaletteOpen,
       setLocale,
+      mode,
+      setMode,
       setRole,
       can,
       setNodeStatus,
@@ -669,6 +675,7 @@ export function WorkbenchProvider({
       attachPdf,
       onboardingDone,
       quizAnswers,
+      mode,
     ],
   );
 

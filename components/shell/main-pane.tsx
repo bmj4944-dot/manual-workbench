@@ -11,7 +11,6 @@ import { FindReplaceBar } from "@/components/editor/find-replace-bar";
 import { WorkflowStrip } from "./workflow-strip";
 import { MustReadBar } from "./must-read-bar";
 import { PdfViewer } from "@/components/pdf/pdf-viewer";
-import { t } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const STATUS_PILL: Record<string, { bg: string; fg: string; ko: string; en: string }> = {
@@ -35,8 +34,8 @@ export function MainPane() {
     favorites,
     toggleFavorite,
     attachPdf,
+    mode,
   } = useWorkbench();
-  const [editable, setEditable] = useState(true);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [findOpen, setFindOpen] = useState(false);
   const [attaching, setAttaching] = useState(false);
@@ -53,7 +52,7 @@ export function MainPane() {
   const isFav = favorites.includes(activeId);
 
   const canEdit = can("edit");
-  const effectiveEditable = editable && canEdit && !isPdf;
+  const effectiveEditable = mode === "edit" && canEdit && !isPdf;
 
   const onEditor = useCallback((e: Editor | null) => setEditor(e), []);
 
@@ -164,33 +163,6 @@ export function MainPane() {
                     </span>
                   ))}
                   <span className="flex-1" />
-                  <div className="flex items-center rounded-[var(--radius)] border border-line bg-surface-2 p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setEditable(true)}
-                      disabled={!canEdit}
-                      className={cn(
-                        "rounded-[5px] px-2.5 py-1 text-[12.5px] font-medium",
-                        effectiveEditable
-                          ? "bg-panel text-ink shadow-sm"
-                          : "text-ink-3",
-                        !canEdit && "cursor-not-allowed opacity-50",
-                      )}
-                      title={!canEdit ? "현재 역할은 편집 권한이 없습니다" : undefined}
-                    >
-                      {t(locale, "edit")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditable(false)}
-                      className={cn(
-                        "rounded-[5px] px-2.5 py-1 text-[12.5px] font-medium",
-                        !effectiveEditable ? "bg-panel text-ink shadow-sm" : "text-ink-3",
-                      )}
-                    >
-                      {t(locale, "read")}
-                    </button>
-                  </div>
                   <button
                     type="button"
                     onClick={() => toggleFavorite(activeId)}

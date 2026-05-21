@@ -19,26 +19,19 @@ export default function Home() {
   const showThreePane = view === "doc";
 
   return (
-    <div className="grid h-screen grid-rows-[var(--topbar-h)_1fr]">
+    <div className="app">
       <Topbar />
-      <div
-        className="grid min-h-0"
-        style={{
-          gridTemplateColumns: showThreePane ? "280px 1fr 300px" : "280px 1fr",
-        }}
-      >
+      <div className={`main layout-${showThreePane ? "3panel" : "2panel"}`}>
         <Sidebar />
-        {view === "doc" && (
-          <div className="grid min-h-0 grid-rows-[auto_1fr]">
-            <DocTabs />
-            <MainPane />
-          </div>
-        )}
-        {view === "search" && <SearchView />}
-        {view === "dashboard" && <DashboardView />}
-        {view === "cases" && <CasesView />}
-        {view === "faq" && <FaqView />}
-        {view === "onboarding" && <OnboardingView />}
+        <main className="center" data-screen-label="Center">
+          {view === "doc" && <DocTabs />}
+          {view === "doc" && <MainPane />}
+          {view === "search" && <SearchView />}
+          {view === "dashboard" && <DashboardView />}
+          {view === "cases" && <CasesView />}
+          {view === "faq" && <FaqView />}
+          {view === "onboarding" && <OnboardingView />}
+        </main>
         {showThreePane && <RightPanel />}
       </div>
       <CommandPalette />

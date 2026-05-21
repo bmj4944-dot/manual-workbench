@@ -1033,6 +1033,7 @@ export function DocumentEditor({
           onKeyDown={onDocKeyDown}
           spellCheck={false}
         />
+        {editable && <TableEditorOverlay docRef={docRef} />}
         {bottomSlot}
       </div>
 
@@ -1042,8 +1043,6 @@ export function DocumentEditor({
           onClose={() => setTableOpen(false)}
         />
       )}
-
-      {editable && <TableEditorOverlay docRef={docRef} />}
 
       {mention && filteredMembers.length > 0 && (
         <div

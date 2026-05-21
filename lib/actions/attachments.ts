@@ -26,10 +26,23 @@ export async function uploadAttachmentAction(
   const file = formData.get("file");
   if (!(file instanceof File)) throw new Error("missing file");
 
-  // Random storage path under <doc_id>/<uuid>-<safe-name>
+  // Prefer an explicit "name" text field over file.name to avoid multipart
+  // boundary encoding mojibake (Korean filenames). The client sends both;
+  // text fields are guaranteed UTF-8 by Next.js form-data parsing.
+  const explicitName = formData.get("name");
+  const fileName =
+    typeof explicitName === "string" && explicitName.length > 0
+      ? explicitName
+      : file.name;
+
+  // Storage path uses just a UUID + extension — keep ASCII-only to avoid
+  // any storage-layer URL encoding edge cases. The original filename is
+  // preserved in the DB (file_name column) and served back via
+  // Content-Disposition on download.
   const id = crypto.randomUUID();
-  const safe = file.name.replace(/[^\w.\-]+/g, "_").slice(0, 80);
-  const storagePath = `${documentId}/${id}-${safe}`;
+  const extMatch = fileName.match(/\.([A-Za-z0-9]{1,8})$/);
+  const ext = extMatch ? `.${extMatch[1].toLowerCase()}` : "";
+  const storagePath = `${documentId}/${id}${ext}`;
 
   const { error: upErr } = await supabase.storage
     .from(BUCKET)
@@ -44,7 +57,7 @@ export async function uploadAttachmentAction(
     .insert({
       id,
       document_id: documentId,
-      file_name: file.name,
+      file_name: fileName,
       file_size: file.size,
       mime_type: file.type || null,
       storage_path: storagePath,
@@ -72,7 +85,7 @@ export async function uploadAttachmentAction(
   return {
     id: row.id,
     documentId: row.document_id,
-    fileName: row.file_name,
+    fileName: fileName,
     fileSize: row.file_size,
     mimeType: row.mime_type,
     storagePath: row.storage_path,

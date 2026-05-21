@@ -216,6 +216,7 @@ type Props = {
   content: string;
   editable?: boolean;
   onUpdate?: (html: string) => void;
+  bottomSlot?: React.ReactNode;
 };
 
 type MentionState = {
@@ -228,7 +229,12 @@ type MentionState = {
   activeIdx: number;
 };
 
-export function DocumentEditor({ content, editable = true, onUpdate }: Props) {
+export function DocumentEditor({
+  content,
+  editable = true,
+  onUpdate,
+  bottomSlot,
+}: Props) {
   const { members } = useWorkbench();
   const docRef = useRef<HTMLDivElement>(null);
   const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
@@ -1025,6 +1031,7 @@ export function DocumentEditor({ content, editable = true, onUpdate }: Props) {
           onKeyDown={onDocKeyDown}
           spellCheck={false}
         />
+        {bottomSlot}
       </div>
 
       {tableOpen && (

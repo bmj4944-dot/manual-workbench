@@ -614,6 +614,7 @@ export function WorkbenchProvider({
       }
       const fd = new FormData();
       fd.set("file", file);
+      fd.set("name", file.name); // explicit UTF-8 name (avoids multipart 한글 깨짐)
       const created = await uploadAttachmentAction(nodeId, fd);
       setAttachments((prev) => ({
         ...prev,

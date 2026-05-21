@@ -7,6 +7,7 @@ import { defaultBody } from "@/lib/sample-data";
 import { DocumentEditor } from "@/components/editor/document-editor";
 import { WorkflowStrip } from "./workflow-strip";
 import { MustReadBar } from "./must-read-bar";
+import { FeedbackBar } from "./feedback-bar";
 import { PdfViewer } from "@/components/pdf/pdf-viewer";
 import { cn } from "@/lib/utils";
 
@@ -244,11 +245,13 @@ export function MainPane() {
         content={body}
         editable={effectiveEditable}
         onUpdate={onUpdate}
+        bottomSlot={
+          <>
+            <MustReadBar nodeId={activeId} />
+            <FeedbackBar />
+          </>
+        }
       />
-
-      <div style={{ padding: "0 56px 24px" }}>
-        <MustReadBar nodeId={activeId} />
-      </div>
     </>
   );
 }

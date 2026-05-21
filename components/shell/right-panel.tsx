@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   Clock,
   Download,
@@ -40,29 +40,25 @@ export function RightPanel() {
     [cases, activeId],
   );
 
-  // Watch the live .doc-body for heading changes (matches original behavior).
-  const [outline, setOutline] = useState<{ level: number; text: string; id: string }[]>([]);
-  useEffect(() => {
-    const doc = document.querySelector(".doc-body .doc");
-    if (!doc) {
-      setOutline([]);
-      return;
+  // Outline derived from the stored body HTML — no live DOM observer to
+  // avoid the MutationObserver↔setState↔re-render loop that froze the page.
+  // Editor changes go through onUpdate→setBody and end up in content.body,
+  // so this useMemo updates as you type (debounced via setBody).
+  const outline = useMemo(() => {
+    const html = content?.body ?? "";
+    const out: { level: number; text: string; id: string }[] = [];
+    const re = /<h([1-3])[^>]*>([\s\S]*?)<\/h\1>/gi;
+    let m: RegExpExecArray | null;
+    let i = 0;
+    while ((m = re.exec(html)) !== null) {
+      out.push({
+        level: Number(m[1]),
+        text: m[2].replace(/<[^>]+>/g, "").trim(),
+        id: `oh-${i++}`,
+      });
     }
-    const tick = () => {
-      const hs = doc.querySelectorAll("h1, h2, h3");
-      const items = Array.from(hs).map((h, i) => ({
-        level: parseInt(h.tagName[1], 10),
-        text: h.textContent ?? "",
-        id: `oh-${i}`,
-      }));
-      hs.forEach((h, i) => h.setAttribute("id", `oh-${i}`));
-      setOutline(items);
-    };
-    tick();
-    const ob = new MutationObserver(tick);
-    ob.observe(doc, { childList: true, subtree: true, characterData: true });
-    return () => ob.disconnect();
-  }, [content?.body, node?.label]);
+    return out;
+  }, [content?.body]);
 
   const unresolvedCount = list.filter((c) => !c.resolved).length;
 

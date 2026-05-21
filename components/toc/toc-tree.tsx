@@ -27,13 +27,6 @@ const STATUS_COLOR: Record<string, string> = {
   published: "var(--ok)",
 };
 
-// Numeric label segment, e.g. "1.2.1" → "1", section → "1.2", chapter → "1"
-function numOf(id: string): string {
-  const m = id.match(/^ch(\d+)(?:-(\d+))?(?:-(\d+))?$/);
-  if (!m) return "";
-  return [m[1], m[2], m[3]].filter(Boolean).join(".");
-}
-
 export function TocTree({ nodes }: { nodes: TreeNode[] }) {
   return (
     <>
@@ -96,8 +89,7 @@ function TocNode({ node }: { node: TreeNode }) {
         <div className="ico">
           <NodeIcon size={level === 1 ? 13 : 12} />
         </div>
-        <span className="num">{numOf(node.id)}</span>
-        <div className="label">{label.replace(/^[\d.\s]+/, "")}</div>
+        <div className="label">{label}</div>
         {isFav && (
           <Star size={10} className="shrink-0" style={{ color: "var(--accent)", fill: "currentColor" }} />
         )}

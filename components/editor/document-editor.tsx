@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { EMBED_KEYS, hydrateBody } from "./body-hydration";
+import { TableEditorOverlay } from "./table-overlay";
 import { useWorkbench } from "@/lib/workbench-context";
 import type { TeamMember } from "@/lib/types";
 
@@ -1041,6 +1042,8 @@ export function DocumentEditor({
           onClose={() => setTableOpen(false)}
         />
       )}
+
+      {editable && <TableEditorOverlay docRef={docRef} />}
 
       {mention && filteredMembers.length > 0 && (
         <div

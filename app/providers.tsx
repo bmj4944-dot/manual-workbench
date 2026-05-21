@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
 import { WorkbenchProvider, type CurrentUser } from "@/lib/workbench-context";
 import type {
+  Attachment,
   Case,
   Comment,
   DocContent,
@@ -33,6 +34,7 @@ export type ProviderProps = {
   initialHistory?: Record<string, Version[]>;
   initialFavorites?: string[];
   initialAcked?: ReadonlySet<string>;
+  initialAttachments?: Record<string, Attachment[]>;
 };
 
 export function Providers({ children, ...rest }: ProviderProps) {

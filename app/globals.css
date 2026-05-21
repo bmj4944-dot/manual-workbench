@@ -2606,6 +2606,95 @@ body {
   color: oklch(0.45 0.15 290); cursor: pointer; font: inherit; padding: 0;
 }
 .ai-summary .as-actions button:hover { text-decoration: underline; }
+.ai-summary .as-gen-btn {
+  margin-top: 8px;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 8px 12px;
+  border: 0; border-radius: 6px;
+  background: oklch(0.55 0.20 290);
+  color: white;
+  font: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer;
+}
+.ai-summary .as-gen-btn:hover { filter: brightness(1.05); }
+
+/* ───────────────────────── ATTACHMENTS DROPZONE / CARDS ───────────────────────── */
+.att-dropzone {
+  border: 1.5px dashed var(--line-2);
+  border-radius: 10px;
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  background: transparent;
+  transition: border-color 0.1s, background 0.1s;
+  margin-bottom: 8px;
+}
+.att-dropzone:hover, .att-dropzone.over {
+  border-color: var(--accent);
+  background: var(--accent-2);
+  color: var(--accent);
+}
+.att-dropzone .dz-ico {
+  display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--bg-2); color: var(--ink-3);
+  margin: 0 auto 6px;
+}
+.att-dropzone.over .dz-ico { background: var(--accent-2); color: var(--accent); }
+.att-dropzone .dz-ti { font-size: 12.5px; font-weight: 600; color: var(--ink-2); }
+.att-dropzone.over .dz-ti { color: var(--accent); }
+.att-dropzone .dz-sub {
+  margin-top: 3px;
+  font-size: 10.5px; color: var(--ink-3); font-family: var(--font-en);
+}
+
+.attachment .pdf-ico.doc { background: oklch(0.92 0.05 220); color: oklch(0.40 0.13 220); }
+.attachment .pdf-ico.xls { background: oklch(0.92 0.06 145); color: oklch(0.38 0.13 145); }
+.attachment .pdf-ico.ppt { background: oklch(0.94 0.07 50);  color: oklch(0.45 0.16 50);  }
+.attachment .pdf-ico.img { background: oklch(0.93 0.07 290); color: oklch(0.42 0.14 290); }
+.attachment .pdf-ico.zip { background: oklch(0.92 0.04 80);  color: oklch(0.42 0.07 80);  }
+.attachment .pdf-ico.csv { background: oklch(0.93 0.06 165); color: oklch(0.38 0.13 165); }
+.attachment .pdf-ico.txt { background: oklch(0.93 0.02 80);  color: oklch(0.45 0.04 80);  }
+.attachment .at-actions {
+  display: flex; gap: 4px; opacity: 0;
+  transition: opacity 0.12s;
+}
+.attachment:hover .at-actions { opacity: 1; }
+.attachment .at-actions button {
+  width: 24px; height: 24px; border-radius: 5px;
+  border: 0; background: transparent; cursor: pointer;
+  color: var(--ink-3); display: grid; place-items: center;
+}
+.attachment .at-actions button:hover { background: var(--bg-3); color: var(--ink); }
+.attachment .at-actions button.danger:hover {
+  background: oklch(0.95 0.08 25); color: oklch(0.55 0.18 25);
+}
+.attachment .at-progress {
+  height: 3px; background: var(--bg-3); border-radius: 999px; overflow: hidden;
+  margin-top: 4px;
+}
+.attachment .at-progress > div {
+  height: 100%; background: var(--accent);
+  transition: width 0.2s;
+}
+
+.meta-section .ms-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.meta-section .ms-hd h4 { margin: 0; }
+.meta-section .ms-hd .ms-add {
+  border: 0; background: transparent;
+  color: var(--accent); cursor: pointer; font: inherit;
+  font-size: 11.5px; font-weight: 500;
+}
+.meta-section .ms-hd .ms-add:hover { text-decoration: underline; }
+
+.tags-row .tg.add {
+  background: transparent; border: 1px dashed var(--line-2);
+  color: var(--ink-3); cursor: pointer; font: inherit;
+}
+.tags-row .tg.add:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ───────────────────────── ONBOARDING ───────────────────────── */
 .onboarding-page {

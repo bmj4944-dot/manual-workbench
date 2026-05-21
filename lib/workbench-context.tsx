@@ -36,7 +36,12 @@ import { acknowledgeMustReadAction } from "./actions/compliance";
 import { saveBodyAction } from "./actions/content";
 import { setNodeStatusAction } from "./actions/workflow";
 import { uploadPdfAction } from "./actions/pdf";
+import {
+  deleteAttachmentAction,
+  uploadAttachmentAction,
+} from "./actions/attachments";
 import type {
+  Attachment,
   Case,
   Comment,
   DocContent,
@@ -74,6 +79,7 @@ type WorkbenchState = {
   comments: Record<string, Comment[]>;
   history: Record<string, Version[]>;
   content: Record<string, DocContent>;
+  attachments: Record<string, Attachment[]>;
   cases: Case[];
   onboardingTasks: OnboardingTask[];
   faqs: FaqItem[];
@@ -123,6 +129,8 @@ type WorkbenchState = {
   completeStep: (taskId: string) => void;
   recordQuizAnswer: (taskId: string, q: number, opt: number) => void;
   attachPdf: (nodeId: string, file: File) => Promise<void>;
+  uploadAttachment: (nodeId: string, file: File) => Promise<void>;
+  deleteAttachment: (nodeId: string, attachmentId: string) => Promise<void>;
 };
 
 const Ctx = createContext<WorkbenchState | null>(null);
@@ -156,6 +164,7 @@ export function WorkbenchProvider({
   initialHistory,
   initialFavorites,
   initialAcked,
+  initialAttachments,
 }: {
   children: ReactNode;
   initialCurrentUser?: CurrentUser | null;
@@ -173,6 +182,7 @@ export function WorkbenchProvider({
   initialHistory?: Record<string, Version[]>;
   initialFavorites?: string[];
   initialAcked?: ReadonlySet<string>;
+  initialAttachments?: Record<string, Attachment[]>;
 }) {
   const [tree, setTree] = useState<TreeNode[]>(initialTree ?? SAMPLE_TREE);
   const [content, setContent] = useState<Record<string, DocContent>>(
@@ -219,6 +229,9 @@ export function WorkbenchProvider({
     initialAcked ?? new Set(),
   );
   const [favorites, setFavorites] = useState<string[]>(initialFavorites ?? []);
+  const [attachments, setAttachments] = useState<Record<string, Attachment[]>>(
+    initialAttachments ?? {},
+  );
   const [whatsNewRead, setWhatsNewRead] = useState<ReadonlySet<string>>(new Set());
   const [onboardingDone, setOnboardingDone] = useState<ReadonlySet<string>>(new Set());
   const [quizAnswers, setQuizAnswers] = useState<QuizAnswers>({});
@@ -524,6 +537,40 @@ export function WorkbenchProvider({
     [history, bodyOverrides, content, setBody],
   );
 
+  const uploadAttachment = useCallback(
+    async (nodeId: string, file: File) => {
+      if (!ROLE_PERMISSIONS[role].includes("edit")) {
+        throw new Error("편집 권한이 없습니다.");
+      }
+      const fd = new FormData();
+      fd.set("file", file);
+      const created = await uploadAttachmentAction(nodeId, fd);
+      setAttachments((prev) => ({
+        ...prev,
+        [nodeId]: [created, ...(prev[nodeId] ?? [])],
+      }));
+    },
+    [role],
+  );
+
+  const deleteAttachment = useCallback(
+    async (nodeId: string, attachmentId: string) => {
+      const prevList = attachments[nodeId] ?? [];
+      // Optimistic
+      setAttachments((prev) => ({
+        ...prev,
+        [nodeId]: (prev[nodeId] ?? []).filter((a) => a.id !== attachmentId),
+      }));
+      try {
+        await deleteAttachmentAction(attachmentId);
+      } catch (err) {
+        console.error("deleteAttachmentAction failed", err);
+        setAttachments((prev) => ({ ...prev, [nodeId]: prevList }));
+      }
+    },
+    [attachments],
+  );
+
   const attachPdf = useCallback(
     async (nodeId: string, file: File) => {
       if (!ROLE_PERMISSIONS[role].includes("edit")) {
@@ -585,6 +632,7 @@ export function WorkbenchProvider({
       mustRead,
       whatsNew,
       compliance,
+      attachments,
       bodyOverrides,
       acked,
       favorites,
@@ -622,6 +670,8 @@ export function WorkbenchProvider({
       completeStep,
       recordQuizAnswer,
       attachPdf,
+      uploadAttachment,
+      deleteAttachment,
     }),
     [
       tree,
@@ -647,6 +697,7 @@ export function WorkbenchProvider({
       mustRead,
       whatsNew,
       compliance,
+      attachments,
       bodyOverrides,
       acked,
       favorites,
@@ -673,6 +724,8 @@ export function WorkbenchProvider({
       completeStep,
       recordQuizAnswer,
       attachPdf,
+      uploadAttachment,
+      deleteAttachment,
       onboardingDone,
       quizAnswers,
       mode,

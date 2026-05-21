@@ -17,6 +17,7 @@ import {
 import { fetchComments } from "@/lib/data/comments";
 import { fetchHistory } from "@/lib/data/history";
 import { fetchAckedIds, fetchFavorites } from "@/lib/data/user-state";
+import { fetchAttachments } from "@/lib/data/attachments";
 
 export const metadata: Metadata = {
   title: "Manual Workbench",
@@ -48,6 +49,7 @@ export default async function RootLayout({
         history,
         favorites,
         ackedIds,
+        attachments,
       ] = await Promise.all([
         fetchDocumentTree(),
         fetchDocumentContent(),
@@ -63,6 +65,7 @@ export default async function RootLayout({
         fetchHistory(),
         fetchFavorites(),
         fetchAckedIds(),
+        fetchAttachments(),
       ]);
       initial.initialTree = tree;
       initial.initialContent = content;
@@ -78,6 +81,7 @@ export default async function RootLayout({
       initial.initialHistory = history;
       initial.initialFavorites = favorites;
       initial.initialAcked = new Set(ackedIds);
+      initial.initialAttachments = attachments;
     } catch (error) {
       console.error(
         "[layout] failed to fetch workbench data from Supabase:",

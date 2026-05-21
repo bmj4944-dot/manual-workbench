@@ -94,6 +94,17 @@ export type OnboardingQuestion = {
   explain: string;
 };
 
+export type Attachment = {
+  id: string;
+  documentId: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string | null;
+  storagePath: string;
+  uploaderName: string;
+  uploadedAt: string; // ISO
+};
+
 export type FaqItem = {
   q: string;
   a: string;

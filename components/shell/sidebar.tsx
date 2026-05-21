@@ -41,7 +41,10 @@ export function Sidebar() {
     whatsNewRead,
     markWhatsNewRead,
     whatsNew,
+    createTreeNode,
+    can,
   } = useWorkbench();
+  const canEdit = can("edit");
   const [q, setQ] = useState("");
   const [whatsNewCollapsed, setWhatsNewCollapsed] = useState(false);
   const filtered = useMemo(() => filterTree(tree, q), [tree, q]);
@@ -53,10 +56,22 @@ export function Sidebar() {
       <div className="sb-hd">
         <span className="ttl">{t(locale, "tocTitle")}</span>
         <div className="actions">
-          <button type="button" aria-label={t(locale, "addChapter")} title="새 챕터">
-            <Plus size={13} />
-          </button>
-          <button type="button" aria-label="새로고침" title="새로고침">
+          {canEdit && (
+            <button
+              type="button"
+              aria-label="새 장 추가"
+              title="새 장 추가"
+              onClick={() => createTreeNode(null, "chapter")}
+            >
+              <Plus size={13} />
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label="새로고침"
+            title="새로고침"
+            onClick={() => window.location.reload()}
+          >
             <RotateCw size={12} />
           </button>
         </div>
@@ -157,10 +172,16 @@ export function Sidebar() {
         <TocTree nodes={filtered} />
       </div>
 
-      <button type="button" className="sb-add">
-        <Plus size={12} />
-        <span>새 장 추가</span>
-      </button>
+      {canEdit && (
+        <button
+          type="button"
+          className="sb-add"
+          onClick={() => createTreeNode(null, "chapter")}
+        >
+          <Plus size={12} />
+          <span>새 장 추가</span>
+        </button>
+      )}
 
       <div className="sb-footer">
         <span>

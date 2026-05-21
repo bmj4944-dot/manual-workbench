@@ -8,6 +8,8 @@ import {
   useState,
 } from "react";
 import { hydrateBody } from "./body-hydration";
+import { useWorkbench } from "@/lib/workbench-context";
+import type { TeamMember } from "@/lib/types";
 
 // ─── Inline SVG icons (matches design_handoff icons.jsx) ─────────────
 const Ic = {
@@ -216,7 +218,18 @@ type Props = {
   onUpdate?: (html: string) => void;
 };
 
+type MentionState = {
+  query: string;
+  x: number;
+  y: number;
+  anchorNode: Text;
+  startOffset: number;
+  endOffset: number;
+  activeIdx: number;
+};
+
 export function DocumentEditor({ content, editable = true, onUpdate }: Props) {
+  const { members } = useWorkbench();
   const docRef = useRef<HTMLDivElement>(null);
   const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
   const [colorOpen, setColorOpen] = useState<null | "fg" | "bg">(null);
@@ -227,6 +240,9 @@ export function DocumentEditor({ content, editable = true, onUpdate }: Props) {
   const [replaceQ, setReplaceQ] = useState("");
   const [hits, setHits] = useState(0);
   const [hitIdx, setHitIdx] = useState(0);
+  const [mention, setMention] = useState<MentionState | null>(null);
+  const mentionRef = useRef<MentionState | null>(null);
+  mentionRef.current = mention;
 
   // Load content + hydrate widgets when activeId/content changes.
   useLayoutEffect(() => {
@@ -258,6 +274,46 @@ export function DocumentEditor({ content, editable = true, onUpdate }: Props) {
       } catch {
         /* execCommand unavailable in some contexts */
       }
+    };
+    document.addEventListener("selectionchange", onSel);
+    return () => document.removeEventListener("selectionchange", onSel);
+  }, [editable]);
+
+  // Detect @ mention pattern via selectionchange
+  useEffect(() => {
+    if (!editable) return;
+    const onSel = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0) return;
+      const range = sel.getRangeAt(0);
+      if (!range.collapsed) return;
+      if (!docRef.current?.contains(range.startContainer)) return;
+      const node = range.startContainer;
+      if (node.nodeType !== Node.TEXT_NODE) {
+        setMention(null);
+        return;
+      }
+      const text = (node.textContent ?? "").slice(0, range.startOffset);
+      const m = text.match(/@(\S*)$/);
+      if (!m) {
+        setMention(null);
+        return;
+      }
+      const query = m[1];
+      const probe = document.createRange();
+      probe.setStart(node, range.startOffset - m[0].length);
+      probe.setEnd(node, range.startOffset);
+      const rect = probe.getBoundingClientRect();
+      setMention((prev) => ({
+        query,
+        x: rect.left,
+        y: rect.bottom + 4,
+        anchorNode: node as Text,
+        startOffset: range.startOffset - m[0].length,
+        endOffset: range.startOffset,
+        activeIdx: 0,
+        ...(prev?.query === query ? { activeIdx: prev.activeIdx } : {}),
+      }));
     };
     document.addEventListener("selectionchange", onSel);
     return () => document.removeEventListener("selectionchange", onSel);
@@ -493,6 +549,72 @@ export function DocumentEditor({ content, editable = true, onUpdate }: Props) {
     setFindQ("");
     setReplaceQ("");
     notifyChange();
+  };
+
+  // ── Mention selection ───────────────────────────────────────────
+  const filteredMembers = mention
+    ? members.filter((m) =>
+        m.name.toLowerCase().includes(mention.query.toLowerCase()),
+      ).slice(0, 6)
+    : [];
+
+  const selectMention = (m: TeamMember) => {
+    const st = mentionRef.current;
+    if (!st || !docRef.current) return;
+    const range = document.createRange();
+    range.setStart(st.anchorNode, st.startOffset);
+    range.setEnd(st.anchorNode, st.endOffset);
+    range.deleteContents();
+    const span = document.createElement("span");
+    span.className = "mention";
+    span.setAttribute("data-id", m.id);
+    span.textContent = m.name;
+    range.insertNode(span);
+    // Caret after the chip
+    range.setStartAfter(span);
+    range.collapse(true);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+    // Insert a trailing space
+    document.execCommand("insertText", false, " ");
+    setMention(null);
+    notifyChange();
+  };
+
+  const onDocKeyDown = (e: React.KeyboardEvent) => {
+    const st = mentionRef.current;
+    if (!st) return;
+    // We need to compute the live filtered list size to clamp idx
+    const list = members.filter((m) =>
+      m.name.toLowerCase().includes(st.query.toLowerCase()),
+    ).slice(0, 6);
+    if (!list.length && e.key !== "Escape") return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setMention((prev) =>
+        prev
+          ? { ...prev, activeIdx: (prev.activeIdx + 1) % list.length }
+          : prev,
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setMention((prev) =>
+        prev
+          ? {
+              ...prev,
+              activeIdx: (prev.activeIdx - 1 + list.length) % list.length,
+            }
+          : prev,
+      );
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      const target = list[st.activeIdx] ?? list[0];
+      if (target) selectMention(target);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setMention(null);
+    }
   };
 
   // ── Image drag-drop into .img-block ─────────────────────────────
@@ -900,6 +1022,7 @@ export function DocumentEditor({ content, editable = true, onUpdate }: Props) {
           contentEditable={editable}
           suppressContentEditableWarning
           onInput={notifyChange}
+          onKeyDown={onDocKeyDown}
           spellCheck={false}
         />
       </div>
@@ -909,6 +1032,35 @@ export function DocumentEditor({ content, editable = true, onUpdate }: Props) {
           onInsert={(rows, cols) => insertTable(rows, cols)}
           onClose={() => setTableOpen(false)}
         />
+      )}
+
+      {mention && filteredMembers.length > 0 && (
+        <div
+          className="mention-pop"
+          style={{ left: mention.x, top: mention.y, position: "fixed" }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {filteredMembers.map((m, i) => (
+            <button
+              key={m.id}
+              type="button"
+              className={`mn${i === mention.activeIdx ? " on" : ""}`}
+              onClick={() => selectMention(m)}
+              style={{
+                border: 0,
+                width: "100%",
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+            >
+              <span className="av" style={{ background: m.color }}>
+                {m.initials}
+              </span>
+              <span>{m.name}</span>
+              <span className="rl">{m.role}</span>
+            </button>
+          ))}
+        </div>
       )}
     </>
   );

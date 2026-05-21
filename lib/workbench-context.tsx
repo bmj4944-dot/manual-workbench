@@ -40,6 +40,12 @@ import {
   deleteAttachmentAction,
   uploadAttachmentAction,
 } from "./actions/attachments";
+import {
+  createDocumentAction,
+  deleteDocumentAction,
+  moveDocumentAction,
+  renameDocumentAction,
+} from "./actions/documents-crud";
 import type {
   Attachment,
   Case,
@@ -131,6 +137,10 @@ type WorkbenchState = {
   attachPdf: (nodeId: string, file: File) => Promise<void>;
   uploadAttachment: (nodeId: string, file: File) => Promise<void>;
   deleteAttachment: (nodeId: string, attachmentId: string) => Promise<void>;
+  createTreeNode: (parentId: string | null, kind: "chapter" | "section" | "item", label?: string) => Promise<void>;
+  renameTreeNode: (id: string, label: string) => Promise<void>;
+  deleteTreeNode: (id: string) => Promise<void>;
+  moveTreeNode: (id: string, dir: -1 | 1) => Promise<void>;
 };
 
 const Ctx = createContext<WorkbenchState | null>(null);
@@ -145,6 +155,44 @@ function mutate(
     if (n.children) return { ...n, children: mutate(n.children, id, fn) };
     return n;
   });
+}
+
+function removeTreeAndReturn(
+  nodes: TreeNode[],
+  id: string,
+  onFound?: (n: TreeNode) => void,
+): TreeNode[] {
+  const out: TreeNode[] = [];
+  for (const n of nodes) {
+    if (n.id === id) {
+      onFound?.(n);
+      continue;
+    }
+    if (n.children) {
+      out.push({ ...n, children: removeTreeAndReturn(n.children, id, onFound) });
+    } else {
+      out.push(n);
+    }
+  }
+  return out;
+}
+
+function swapSibling(
+  nodes: TreeNode[],
+  id: string,
+  dir: -1 | 1,
+): TreeNode[] {
+  const idx = nodes.findIndex((n) => n.id === id);
+  if (idx !== -1) {
+    const j = idx + dir;
+    if (j < 0 || j >= nodes.length) return nodes;
+    const next = [...nodes];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    return next;
+  }
+  return nodes.map((n) =>
+    n.children ? { ...n, children: swapSibling(n.children, id, dir) } : n,
+  );
 }
 
 export function WorkbenchProvider({
@@ -571,6 +619,93 @@ export function WorkbenchProvider({
     [attachments],
   );
 
+  // ── TOC tree management (CRUD) ─────────────────────────────────
+  const createTreeNode = useCallback(
+    async (
+      parentId: string | null,
+      kind: "chapter" | "section" | "item",
+      label?: string,
+    ) => {
+      if (!ROLE_PERMISSIONS[role].includes("edit"))
+        throw new Error("편집 권한이 없습니다.");
+      const defaultLabel =
+        label ?? (kind === "chapter" ? "새 장" : kind === "section" ? "새 절" : "새 항목");
+      const created = await createDocumentAction({
+        parentId,
+        type: kind,
+        label: defaultLabel,
+      });
+      // Insert into local tree under parent (or top-level if parent null)
+      setTree((prev) => {
+        if (parentId === null) {
+          return [...prev, created];
+        }
+        return mutate(prev, parentId, (n) => ({
+          ...n,
+          open: true,
+          children: [...(n.children ?? []), created],
+        }));
+      });
+    },
+    [role],
+  );
+
+  const renameTreeNode = useCallback(
+    async (id: string, label: string) => {
+      const trimmed = label.trim();
+      if (!trimmed) return;
+      let prevLabel: string | undefined;
+      setTree((prev) =>
+        mutate(prev, id, (n) => {
+          prevLabel = n.label;
+          return { ...n, label: trimmed };
+        }),
+      );
+      try {
+        await renameDocumentAction(id, trimmed);
+      } catch (err) {
+        console.error("renameDocumentAction failed", err);
+        if (prevLabel !== undefined) {
+          setTree((prev) =>
+            mutate(prev, id, (n) => ({ ...n, label: prevLabel! })),
+          );
+        }
+      }
+    },
+    [],
+  );
+
+  const deleteTreeNode = useCallback(
+    async (id: string) => {
+      let removed: TreeNode | null = null;
+      setTree((prev) => removeTreeAndReturn(prev, id, (n) => (removed = n)));
+      try {
+        await deleteDocumentAction(id);
+      } catch (err) {
+        console.error("deleteDocumentAction failed", err);
+        if (removed) {
+          // Rough rollback: re-fetch on next layout — for now, alert.
+          alert("삭제에 실패했습니다. 페이지를 새로고침해주세요.");
+        }
+      }
+    },
+    [],
+  );
+
+  const moveTreeNode = useCallback(
+    async (id: string, dir: -1 | 1) => {
+      setTree((prev) => swapSibling(prev, id, dir));
+      try {
+        await moveDocumentAction(id, dir);
+      } catch (err) {
+        console.error("moveDocumentAction failed", err);
+        // Roll back via opposite swap
+        setTree((prev) => swapSibling(prev, id, (dir === 1 ? -1 : 1) as -1 | 1));
+      }
+    },
+    [],
+  );
+
   const attachPdf = useCallback(
     async (nodeId: string, file: File) => {
       if (!ROLE_PERMISSIONS[role].includes("edit")) {
@@ -672,6 +807,10 @@ export function WorkbenchProvider({
       attachPdf,
       uploadAttachment,
       deleteAttachment,
+      createTreeNode,
+      renameTreeNode,
+      deleteTreeNode,
+      moveTreeNode,
     }),
     [
       tree,
@@ -726,6 +865,10 @@ export function WorkbenchProvider({
       attachPdf,
       uploadAttachment,
       deleteAttachment,
+      createTreeNode,
+      renameTreeNode,
+      deleteTreeNode,
+      moveTreeNode,
       onboardingDone,
       quizAnswers,
       mode,

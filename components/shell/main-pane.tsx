@@ -1,13 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Editor } from "@tiptap/react";
-import { MessageCircle, Paperclip, Star } from "lucide-react";
+import { MessageCircle, Paperclip } from "lucide-react";
 import { useWorkbench, findNode } from "@/lib/workbench-context";
 import { defaultBody } from "@/lib/sample-data";
 import { DocumentEditor } from "@/components/editor/document-editor";
-import { EditorToolbar } from "@/components/editor/editor-toolbar";
-import { FindReplaceBar } from "@/components/editor/find-replace-bar";
 import { WorkflowStrip } from "./workflow-strip";
 import { MustReadBar } from "./must-read-bar";
 import { PdfViewer } from "@/components/pdf/pdf-viewer";
@@ -37,8 +34,6 @@ export function MainPane() {
     attachments,
     mode,
   } = useWorkbench();
-  const [editor, setEditor] = useState<Editor | null>(null);
-  const [findOpen, setFindOpen] = useState(false);
   const [attaching, setAttaching] = useState(false);
   const saveTimer = useRef<number | null>(null);
   const lastSavedRef = useRef<string>("");
@@ -54,8 +49,6 @@ export function MainPane() {
 
   const canEdit = can("edit");
   const effectiveEditable = mode === "edit" && canEdit && !isPdf;
-
-  const onEditor = useCallback((e: Editor | null) => setEditor(e), []);
 
   useEffect(() => {
     lastSavedRef.current = body;
@@ -90,52 +83,46 @@ export function MainPane() {
     };
   }, []);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        setFindOpen(true);
-      } else if (e.key === "Escape" && findOpen) {
-        setFindOpen(false);
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [findOpen]);
-
   if (isPdf) {
     return (
       <>
         <WorkflowStrip />
         <div className="doc-head">
           <div className="tag-row">
-            <span className="tag">{node?.type === "item" ? "항목" : node?.type === "section" ? "절" : "장"}</span>
+            <span className="tag">
+              {node?.type === "item"
+                ? "항목"
+                : node?.type === "section"
+                ? "절"
+                : "장"}
+            </span>
             <span className="tag accent">{STATUS_PILL_KO[status]}</span>
-            <span className="tag" style={{ background: "var(--accent-2)", color: "var(--accent)" }}>
+            <span
+              className="tag"
+              style={{
+                background: "var(--accent-2)",
+                color: "var(--accent)",
+              }}
+            >
               PDF
             </span>
             <span style={{ flex: 1 }} />
             <button
               type="button"
+              className={`fav-star${isFav ? " on" : ""}`}
               onClick={() => toggleFavorite(activeId)}
               title="즐겨찾기"
-              style={{
-                border: "1px solid var(--line)",
-                background: "var(--panel)",
-                borderRadius: 6,
-                width: 28,
-                height: 28,
-                display: "grid",
-                placeItems: "center",
-                cursor: "pointer",
-                color: isFav ? "var(--warn)" : "var(--ink-3)",
-              }}
             >
-              <Star size={14} style={isFav ? { fill: "currentColor" } : undefined} />
+              {isFav ? "★" : "☆"}
             </button>
           </div>
-          <h1>{node ? (locale === "ko" ? node.label : node.labelEn ?? node.label) : ""}</h1>
+          <h1>
+            {node
+              ? locale === "ko"
+                ? node.label
+                : node.labelEn ?? node.label
+              : ""}
+          </h1>
         </div>
         <PdfViewer nodeId={activeId} />
         <div className="border-t border-line bg-surface px-10 py-3">
@@ -152,7 +139,11 @@ export function MainPane() {
         <div className="doc-head">
           <div className="tag-row">
             <span className="tag">
-              {node.type === "item" ? "항목" : node.type === "section" ? "절" : "장"}
+              {node.type === "item"
+                ? "항목"
+                : node.type === "section"
+                ? "절"
+                : "장"}
             </span>
             <span className="tag accent">{STATUS_PILL_KO[status]}</span>
             {content?.tags.slice(0, 3).map((tag) => (
@@ -162,25 +153,18 @@ export function MainPane() {
             ))}
             <span style={{ flex: 1 }} />
             <span style={{ color: "var(--ink-3)", fontSize: 11.5 }}>
-              최근 수정: <b style={{ color: "var(--ink-2)", fontWeight: 600 }}>{content?.updated ?? "—"}</b>
+              최근 수정:{" "}
+              <b style={{ color: "var(--ink-2)", fontWeight: 600 }}>
+                {content?.updated ?? "—"}
+              </b>
             </span>
             <button
               type="button"
+              className={`fav-star${isFav ? " on" : ""}`}
               onClick={() => toggleFavorite(activeId)}
               title="즐겨찾기"
-              style={{
-                border: "1px solid var(--line)",
-                background: "var(--panel)",
-                borderRadius: 6,
-                width: 28,
-                height: 28,
-                display: "grid",
-                placeItems: "center",
-                cursor: "pointer",
-                color: isFav ? "var(--warn)" : "var(--ink-3)",
-              }}
             >
-              <Star size={14} style={isFav ? { fill: "currentColor" } : undefined} />
+              {isFav ? "★" : "☆"}
             </button>
             {canEdit && (
               <label
@@ -218,26 +202,34 @@ export function MainPane() {
           <div className="sub">
             {content?.author && (
               <>
-                <b>{content.author}</b>
-                <span>· 작성자</span>
+                <span>
+                  <b>{content.author}</b>
+                  <span style={{ color: "var(--ink-3)" }}> · 작성자</span>
+                </span>
+                <span className="dot" />
               </>
             )}
             {content?.version && (
               <>
-                <span className="dot" />
                 <span>
                   버전 <b>{content.version}</b>
                 </span>
+                <span className="dot" />
               </>
             )}
-            <span className="dot" />
             <span>
               <b>{nodeAttachments.length}</b> 첨부 파일
             </span>
             {node.hasComments ? (
               <>
                 <span className="dot" />
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 3,
+                  }}
+                >
                   <MessageCircle size={11} />
                   <b>{node.hasComments}</b> 댓글
                 </span>
@@ -247,35 +239,15 @@ export function MainPane() {
         </div>
       )}
 
-      {effectiveEditable && <EditorToolbar editor={editor} />}
+      <DocumentEditor
+        key={activeId}
+        content={body}
+        editable={effectiveEditable}
+        onUpdate={onUpdate}
+      />
 
-      <div className="doc-body" style={{ position: "relative" }}>
-        <FindReplaceBar
-          editor={editor}
-          open={findOpen}
-          onClose={() => setFindOpen(false)}
-        />
-        <div className="doc">
-          <DocumentEditor
-            key={activeId}
-            content={body}
-            editable={effectiveEditable}
-            onEditor={onEditor}
-            onUpdate={onUpdate}
-          />
-          <MustReadBar nodeId={activeId} />
-          <div className="feedback-bar">
-            <span className="q">이 문서가 도움이 되었나요?</span>
-            <div className="fb-btns">
-              <button type="button" className="fb-vote">
-                👍
-              </button>
-              <button type="button" className="fb-vote">
-                👎
-              </button>
-            </div>
-          </div>
-        </div>
+      <div style={{ padding: "0 56px 24px" }}>
+        <MustReadBar nodeId={activeId} />
       </div>
     </>
   );

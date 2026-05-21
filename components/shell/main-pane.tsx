@@ -13,11 +13,11 @@ import { MustReadBar } from "./must-read-bar";
 import { PdfViewer } from "@/components/pdf/pdf-viewer";
 import { cn } from "@/lib/utils";
 
-const STATUS_PILL: Record<string, { bg: string; fg: string; ko: string; en: string }> = {
-  draft: { bg: "bg-[oklch(0.92_0.01_80)]", fg: "text-[oklch(0.45_0.01_80)]", ko: "초안", en: "Draft" },
-  review: { bg: "bg-[oklch(0.94_0.05_80)]", fg: "text-[oklch(0.45_0.14_65)]", ko: "검토중", en: "In review" },
-  approved: { bg: "bg-[oklch(0.93_0.04_240)]", fg: "text-[oklch(0.40_0.13_240)]", ko: "승인", en: "Approved" },
-  published: { bg: "bg-[oklch(0.92_0.06_145)]", fg: "text-[oklch(0.38_0.13_145)]", ko: "공개", en: "Published" },
+const STATUS_PILL_KO: Record<string, string> = {
+  draft: "초안",
+  review: "검토중",
+  approved: "승인",
+  published: "공개",
 };
 
 export function MainPane() {
@@ -34,6 +34,7 @@ export function MainPane() {
     favorites,
     toggleFavorite,
     attachPdf,
+    attachments,
     mode,
   } = useWorkbench();
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -47,9 +48,9 @@ export function MainPane() {
   const baseBody = content?.body ?? defaultBody(activeId, node?.label ?? "");
   const body = bodyOverrides[activeId] ?? baseBody;
   const status = node?.status ?? "draft";
-  const pill = STATUS_PILL[status];
   const isPdf = node?.badge === "PDF";
   const isFav = favorites.includes(activeId);
+  const nodeAttachments = attachments[activeId] ?? [];
 
   const canEdit = can("edit");
   const effectiveEditable = mode === "edit" && canEdit && !isPdf;
@@ -103,157 +104,179 @@ export function MainPane() {
     return () => window.removeEventListener("keydown", handler);
   }, [findOpen]);
 
-  return (
-    <div className="grid min-h-0 grid-rows-[auto_1fr]">
-      <WorkflowStrip />
-      {isPdf ? (
-        <div className="grid min-h-0 grid-rows-[auto_1fr]">
-          <div className="flex items-center gap-2 border-b border-line bg-surface-2 px-4 py-2">
-            <span
-              className={cn(
-                "rounded-full px-2 py-0.5 text-[11px] font-medium",
-                pill.bg,
-                pill.fg,
-              )}
-            >
-              {locale === "ko" ? pill.ko : pill.en}
-            </span>
-            <span className="rounded bg-accent-softer px-1.5 py-px font-en text-[10.5px] font-bold text-accent">
+  if (isPdf) {
+    return (
+      <>
+        <WorkflowStrip />
+        <div className="doc-head">
+          <div className="tag-row">
+            <span className="tag">{node?.type === "item" ? "항목" : node?.type === "section" ? "절" : "장"}</span>
+            <span className="tag accent">{STATUS_PILL_KO[status]}</span>
+            <span className="tag" style={{ background: "var(--accent-2)", color: "var(--accent)" }}>
               PDF
             </span>
-            <span className="flex-1" />
+            <span style={{ flex: 1 }} />
             <button
               type="button"
               onClick={() => toggleFavorite(activeId)}
-              className={cn(
-                "grid h-7 w-7 place-items-center rounded-md border border-line bg-panel text-ink-3 hover:text-warn",
-                isFav && "text-warn",
-              )}
-              aria-label="Favorite"
+              title="즐겨찾기"
+              style={{
+                border: "1px solid var(--line)",
+                background: "var(--panel)",
+                borderRadius: 6,
+                width: 28,
+                height: 28,
+                display: "grid",
+                placeItems: "center",
+                cursor: "pointer",
+                color: isFav ? "var(--warn)" : "var(--ink-3)",
+              }}
             >
-              <Star size={14} className={cn(isFav && "fill-warn")} />
+              <Star size={14} style={isFav ? { fill: "currentColor" } : undefined} />
             </button>
           </div>
-          <PdfViewer nodeId={activeId} />
-          <div className="border-t border-line bg-surface px-10 py-3">
-            <MustReadBar nodeId={activeId} />
+          <h1>{node ? (locale === "ko" ? node.label : node.labelEn ?? node.label) : ""}</h1>
+        </div>
+        <PdfViewer nodeId={activeId} />
+        <div className="border-t border-line bg-surface px-10 py-3">
+          <MustReadBar nodeId={activeId} />
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <WorkflowStrip />
+      {node && (
+        <div className="doc-head">
+          <div className="tag-row">
+            <span className="tag">
+              {node.type === "item" ? "항목" : node.type === "section" ? "절" : "장"}
+            </span>
+            <span className="tag accent">{STATUS_PILL_KO[status]}</span>
+            {content?.tags.slice(0, 3).map((tag) => (
+              <span key={tag} className="tag">
+                {tag}
+              </span>
+            ))}
+            <span style={{ flex: 1 }} />
+            <span style={{ color: "var(--ink-3)", fontSize: 11.5 }}>
+              최근 수정: <b style={{ color: "var(--ink-2)", fontWeight: 600 }}>{content?.updated ?? "—"}</b>
+            </span>
+            <button
+              type="button"
+              onClick={() => toggleFavorite(activeId)}
+              title="즐겨찾기"
+              style={{
+                border: "1px solid var(--line)",
+                background: "var(--panel)",
+                borderRadius: 6,
+                width: 28,
+                height: 28,
+                display: "grid",
+                placeItems: "center",
+                cursor: "pointer",
+                color: isFav ? "var(--warn)" : "var(--ink-3)",
+              }}
+            >
+              <Star size={14} style={isFav ? { fill: "currentColor" } : undefined} />
+            </button>
+            {canEdit && (
+              <label
+                title="이 문서에 PDF 첨부"
+                className={cn(
+                  "flex h-7 cursor-pointer items-center gap-1 rounded-md border border-line bg-panel px-2 text-[11.5px] text-ink-2 hover:text-accent",
+                  attaching && "cursor-wait opacity-60",
+                )}
+              >
+                <Paperclip size={12} />
+                {attaching ? "업로드 중..." : "PDF 첨부"}
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  disabled={attaching}
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (!f) return;
+                    setAttaching(true);
+                    try {
+                      await attachPdf(activeId, f);
+                    } catch (err) {
+                      console.error("attachPdf failed", err);
+                    } finally {
+                      setAttaching(false);
+                    }
+                  }}
+                />
+              </label>
+            )}
+          </div>
+          <h1>{locale === "ko" ? node.label : node.labelEn ?? node.label}</h1>
+          <div className="sub">
+            {content?.author && (
+              <>
+                <b>{content.author}</b>
+                <span>· 작성자</span>
+              </>
+            )}
+            {content?.version && (
+              <>
+                <span className="dot" />
+                <span>
+                  버전 <b>{content.version}</b>
+                </span>
+              </>
+            )}
+            <span className="dot" />
+            <span>
+              <b>{nodeAttachments.length}</b> 첨부 파일
+            </span>
+            {node.hasComments ? (
+              <>
+                <span className="dot" />
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <MessageCircle size={11} />
+                  <b>{node.hasComments}</b> 댓글
+                </span>
+              </>
+            ) : null}
           </div>
         </div>
-      ) : (
-        <main className="min-h-0 overflow-y-auto bg-surface">
-          <div className="mx-auto max-w-[820px] px-10 py-8">
-            <div className="mb-5 flex items-center gap-2">
-              {node && (
-                <>
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-[11px] font-medium",
-                      pill.bg,
-                      pill.fg,
-                    )}
-                  >
-                    {locale === "ko" ? pill.ko : pill.en}
-                  </span>
-                  {content?.tags.slice(0, 2).map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full border border-line bg-panel px-2 py-0.5 text-[11px] text-ink-2"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                  <span className="flex-1" />
-                  <button
-                    type="button"
-                    onClick={() => toggleFavorite(activeId)}
-                    className={cn(
-                      "grid h-7 w-7 place-items-center rounded-md border border-line bg-panel text-ink-3 hover:text-warn",
-                      isFav && "text-warn",
-                    )}
-                    aria-label="Favorite"
-                  >
-                    <Star size={14} className={cn(isFav && "fill-warn")} />
-                  </button>
-                  {canEdit && (
-                    <label
-                      className={cn(
-                        "flex h-7 cursor-pointer items-center gap-1 rounded-md border border-line bg-panel px-2 text-[11.5px] text-ink-3 hover:text-accent",
-                        attaching && "cursor-wait opacity-60",
-                      )}
-                      title="이 문서에 PDF를 첨부 (업로드 후 PDF 뷰어로 전환)"
-                    >
-                      <Paperclip size={12} />
-                      {attaching ? "업로드 중..." : "PDF 첨부"}
-                      <input
-                        type="file"
-                        accept="application/pdf"
-                        disabled={attaching}
-                        className="hidden"
-                        onChange={async (e) => {
-                          const f = e.target.files?.[0];
-                          e.target.value = "";
-                          if (!f) return;
-                          setAttaching(true);
-                          try {
-                            await attachPdf(activeId, f);
-                          } catch (err) {
-                            console.error("attachPdf failed", err);
-                          } finally {
-                            setAttaching(false);
-                          }
-                        }}
-                      />
-                    </label>
-                  )}
-                  {node.hasComments ? (
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 rounded-md border border-line bg-panel px-2 py-1 text-[11.5px] text-ink-2"
-                    >
-                      <MessageCircle size={12} /> {node.hasComments}
-                    </button>
-                  ) : null}
-                </>
-              )}
-            </div>
+      )}
 
-            {effectiveEditable && <EditorToolbar editor={editor} />}
-            <FindReplaceBar
-              editor={editor}
-              open={findOpen}
-              onClose={() => setFindOpen(false)}
-            />
+      {effectiveEditable && <EditorToolbar editor={editor} />}
 
-            <DocumentEditor
-              key={activeId}
-              content={body}
-              editable={effectiveEditable}
-              onEditor={onEditor}
-              onUpdate={onUpdate}
-            />
-
-            <MustReadBar nodeId={activeId} />
-
-            <div className="mt-6 flex items-center justify-between rounded-[var(--radius-lg)] border border-line bg-panel px-4 py-3 text-[12.5px] text-ink-3">
-              <span>이 문서가 도움이 되었나요?</span>
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  className="rounded-md border border-line bg-surface-2 px-2.5 py-1 hover:bg-surface-3"
-                >
-                  👍 도움이 됨
-                </button>
-                <button
-                  type="button"
-                  className="rounded-md border border-line bg-surface-2 px-2.5 py-1 hover:bg-surface-3"
-                >
-                  👎 보강 필요
-                </button>
-              </div>
+      <div className="doc-body" style={{ position: "relative" }}>
+        <FindReplaceBar
+          editor={editor}
+          open={findOpen}
+          onClose={() => setFindOpen(false)}
+        />
+        <div className="doc">
+          <DocumentEditor
+            key={activeId}
+            content={body}
+            editable={effectiveEditable}
+            onEditor={onEditor}
+            onUpdate={onUpdate}
+          />
+          <MustReadBar nodeId={activeId} />
+          <div className="feedback-bar">
+            <span className="q">이 문서가 도움이 되었나요?</span>
+            <div className="fb-btns">
+              <button type="button" className="fb-vote">
+                👍
+              </button>
+              <button type="button" className="fb-vote">
+                👎
+              </button>
             </div>
           </div>
-        </main>
-      )}
-    </div>
+        </div>
+      </div>
+    </>
   );
 }

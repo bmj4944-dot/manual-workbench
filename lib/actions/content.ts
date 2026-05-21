@@ -26,6 +26,82 @@ export async function saveBodyAction(documentId: string, html: string) {
   revalidatePath("/");
 }
 
+const MAX_TAG_LEN = 24;
+const MAX_TAGS = 12;
+
+function normalizeTag(raw: string): string {
+  // Collapse internal whitespace, strip commas (we use them as separators on
+  // the client), trim, cap length.
+  return raw.replace(/[,\s]+/g, " ").trim().slice(0, MAX_TAG_LEN);
+}
+
+async function readCurrentTags(documentId: string): Promise<{
+  supabase: Awaited<ReturnType<typeof requireProfile>>["supabase"];
+  profileId: string;
+  current: string[];
+}> {
+  const { supabase, profileId, role } = await requireProfile();
+  requirePermission(role, "edit");
+  const { data, error } = await supabase
+    .from("document_content")
+    .select("tags")
+    .eq("document_id", documentId)
+    .maybeSingle();
+  if (error) throw error;
+  const current = (data as { tags: string[] | null } | null)?.tags ?? [];
+  return { supabase, profileId, current };
+}
+
+/**
+ * Appends a tag to document_content.tags. Idempotent (no-op if already present
+ * after case-insensitive compare) and writes back the normalized form. UPSERTs
+ * so docs without a content row yet still get one. Requires 'edit'.
+ */
+export async function addTagAction(documentId: string, raw: string) {
+  const tag = normalizeTag(raw);
+  if (!tag) return { tags: null as string[] | null };
+
+  const { supabase, profileId, current } = await readCurrentTags(documentId);
+  if (current.some((t) => t.toLowerCase() === tag.toLowerCase())) {
+    return { tags: current };
+  }
+  if (current.length >= MAX_TAGS) {
+    throw new Error(`태그는 최대 ${MAX_TAGS}개까지 추가할 수 있습니다.`);
+  }
+  const next = [...current, tag];
+
+  const { error } = await supabase
+    .from("document_content")
+    .upsert(
+      { document_id: documentId, tags: next, author_id: profileId },
+      { onConflict: "document_id" },
+    );
+  if (error) throw error;
+  revalidatePath("/");
+  return { tags: next };
+}
+
+/**
+ * Removes a tag from document_content.tags (case-insensitive match). No-op if
+ * the tag is not present. Requires 'edit'.
+ */
+export async function removeTagAction(documentId: string, tag: string) {
+  const target = tag.trim();
+  if (!target) return { tags: null as string[] | null };
+
+  const { supabase, current } = await readCurrentTags(documentId);
+  const next = current.filter((t) => t.toLowerCase() !== target.toLowerCase());
+  if (next.length === current.length) return { tags: current };
+
+  const { error } = await supabase
+    .from("document_content")
+    .update({ tags: next })
+    .eq("document_id", documentId);
+  if (error) throw error;
+  revalidatePath("/");
+  return { tags: next };
+}
+
 /**
  * Appends a new version row for a document. The body is whatever caller
  * snapshots — typically the just-saved body, or an explicit "save version"

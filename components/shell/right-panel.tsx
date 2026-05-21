@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
-import type { Attachment, Case, Comment, Version } from "@/lib/types";
+import type { Attachment, Case, Comment, Locale, Version } from "@/lib/types";
 
 type Tab = "outline" | "comments" | "history";
 
@@ -140,6 +140,8 @@ export function RightPanel() {
     cases,
     attachments,
     uploadAttachment,
+    addTag,
+    removeTag,
     can,
   } = useWorkbench();
   const [tab, setTab] = useState<Tab>("outline");
@@ -362,22 +364,14 @@ export function RightPanel() {
               />
             )}
 
-            <div className="meta-section">
-              <h4>{locale === "ko" ? "태그" : "Tags"}</h4>
-              <div className="tags-row">
-                {(content?.tags ?? []).map((tg) => (
-                  <span key={tg} className="tg">
-                    {tg}
-                  </span>
-                ))}
-                <span
-                  className="tg"
-                  style={{ color: "var(--ink-4)", cursor: "pointer" }}
-                >
-                  + 추가
-                </span>
-              </div>
-            </div>
+            <TagsSection
+              nodeId={activeId}
+              tags={content?.tags ?? []}
+              canEdit={canEdit}
+              locale={locale}
+              onAdd={addTag}
+              onRemove={removeTag}
+            />
 
             <div className="meta-section">
               <h4>{locale === "ko" ? "아웃라인" : "Outline"}</h4>
@@ -1001,6 +995,136 @@ function HistoryTab({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── Tags ──────────────────────────────────────────────────────────
+// Inline editor for `document_content.tags`. Click "+ 추가" to expose an
+// input. Enter / "," / blur commits. Editors can remove via × on each chip;
+// viewers see chips read-only. The "+ 추가" affordance is hidden for users
+// without 'edit' permission.
+function TagsSection({
+  nodeId,
+  tags,
+  canEdit,
+  locale,
+  onAdd,
+  onRemove,
+}: {
+  nodeId: string;
+  tags: string[];
+  canEdit: boolean;
+  locale: Locale;
+  onAdd: (nodeId: string, tag: string) => Promise<void>;
+  onRemove: (nodeId: string, tag: string) => Promise<void>;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (adding) inputRef.current?.focus();
+  }, [adding]);
+
+  // Closing the editor on node switch keeps stale drafts from leaking across docs.
+  const lastNode = useRef(nodeId);
+  if (lastNode.current !== nodeId) {
+    lastNode.current = nodeId;
+    if (adding || draft) {
+      setAdding(false);
+      setDraft("");
+    }
+  }
+
+  const commit = async () => {
+    const value = draft.trim();
+    if (!value) {
+      setAdding(false);
+      setDraft("");
+      return;
+    }
+    setBusy(true);
+    try {
+      // Comma-separated batch entry: "결제, 환불" → two tags.
+      for (const part of value.split(",")) {
+        const t = part.trim();
+        if (t) await onAdd(nodeId, t);
+      }
+      setDraft("");
+      setAdding(false);
+    } catch (err) {
+      console.error("addTag failed", err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (tg: string) => {
+    if (busy) return;
+    try {
+      await onRemove(nodeId, tg);
+    } catch (err) {
+      console.error("removeTag failed", err);
+    }
+  };
+
+  return (
+    <div className="meta-section">
+      <h4>{locale === "ko" ? "태그" : "Tags"}</h4>
+      <div className="tags-row">
+        {tags.map((tg) => (
+          <span key={tg} className="tg tg-removable">
+            {tg}
+            {canEdit && (
+              <button
+                type="button"
+                className="tg-x"
+                aria-label={locale === "ko" ? "태그 제거" : "Remove tag"}
+                title={locale === "ko" ? "태그 제거" : "Remove tag"}
+                onClick={() => remove(tg)}
+              >
+                <IcClose size={8} />
+              </button>
+            )}
+          </span>
+        ))}
+        {canEdit && !adding && (
+          <button
+            type="button"
+            className="tg tg-add"
+            onClick={() => setAdding(true)}
+          >
+            + {locale === "ko" ? "추가" : "Add"}
+          </button>
+        )}
+        {canEdit && adding && (
+          <input
+            ref={inputRef}
+            type="text"
+            className="tg tg-input"
+            value={draft}
+            disabled={busy}
+            placeholder={
+              locale === "ko" ? "태그 (Enter로 추가)" : "Tag (Enter to add)"
+            }
+            maxLength={48}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === ",") {
+                e.preventDefault();
+                void commit();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setAdding(false);
+                setDraft("");
+              }
+            }}
+            onBlur={() => void commit()}
+          />
+        )}
+      </div>
     </div>
   );
 }

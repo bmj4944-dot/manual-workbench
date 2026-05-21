@@ -916,11 +916,40 @@ body {
 }
 .attachment .at-meta { font-size: 11px; color: var(--ink-3); }
 
-.tags-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.tags-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
 .tags-row .tg {
   font-size: 11px; padding: 2px 7px; border-radius: 999px;
   background: var(--bg-3); color: var(--ink-2);
 }
+.tags-row .tg.tg-removable {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding-right: 4px;
+}
+.tags-row .tg .tg-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 13px; height: 13px; border-radius: 999px;
+  border: 0; padding: 0; cursor: pointer;
+  background: transparent; color: var(--ink-3);
+  transition: background 120ms, color 120ms;
+}
+.tags-row .tg .tg-x:hover { background: var(--bg-2); color: var(--accent); }
+.tags-row .tg.tg-add {
+  border: 1px dashed var(--line); background: transparent;
+  color: var(--ink-3); cursor: pointer;
+  font: inherit; font-size: 11px;
+  padding: 1px 8px; line-height: 1.5;
+  transition: color 120ms, border-color 120ms, background 120ms;
+}
+.tags-row .tg.tg-add:hover {
+  color: var(--accent); border-color: var(--accent); background: var(--accent-2);
+}
+.tags-row .tg.tg-input {
+  border: 1px solid var(--accent); background: var(--panel);
+  color: var(--ink-1); font: inherit; font-size: 11px;
+  padding: 1px 8px; line-height: 1.5; min-width: 110px;
+  outline: none;
+}
+.tags-row .tg.tg-input:disabled { opacity: 0.6; }
 
 /* find replace toast */
 .find-bar {

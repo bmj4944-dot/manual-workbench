@@ -33,7 +33,7 @@ import {
   removeFavoriteAction,
 } from "./actions/favorites";
 import { acknowledgeMustReadAction } from "./actions/compliance";
-import { saveBodyAction } from "./actions/content";
+import { addTagAction, removeTagAction, saveBodyAction } from "./actions/content";
 import { setNodeStatusAction } from "./actions/workflow";
 import { uploadPdfAction } from "./actions/pdf";
 import {
@@ -137,6 +137,8 @@ type WorkbenchState = {
   completeStep: (taskId: string) => void;
   recordQuizAnswer: (taskId: string, q: number, opt: number) => void;
   attachPdf: (nodeId: string, file: File) => Promise<void>;
+  addTag: (nodeId: string, tag: string) => Promise<void>;
+  removeTag: (nodeId: string, tag: string) => Promise<void>;
   uploadAttachment: (nodeId: string, file: File) => Promise<void>;
   deleteAttachment: (nodeId: string, attachmentId: string) => Promise<void>;
   createTreeNode: (parentId: string | null, kind: "chapter" | "section" | "item", label?: string) => Promise<void>;
@@ -754,6 +756,93 @@ export function WorkbenchProvider({
     [],
   );
 
+  // ── Tags ─────────────────────────────────────────────────────────
+  // Optimistic add/remove against `content[nodeId].tags`. On failure we
+  // rollback to the previous list. Duplicate/empty are filtered locally so
+  // the UI mirrors the server's idempotent behavior.
+  const addTag = useCallback(
+    async (nodeId: string, rawTag: string) => {
+      if (!ROLE_PERMISSIONS[role].includes("edit"))
+        throw new Error("편집 권한이 없습니다.");
+      const tag = rawTag.replace(/[,\s]+/g, " ").trim().slice(0, 24);
+      if (!tag) return;
+      let prevTags: string[] | undefined;
+      setContent((prev) => {
+        const existing = prev[nodeId];
+        const list = existing?.tags ?? [];
+        prevTags = list;
+        if (list.some((t) => t.toLowerCase() === tag.toLowerCase())) return prev;
+        const base: DocContent = existing ?? {
+          tags: [],
+          updated: "방금",
+          author: currentUser?.name ?? "",
+          version: "v0.1",
+          body: "",
+        };
+        return { ...prev, [nodeId]: { ...base, tags: [...list, tag] } };
+      });
+      try {
+        const { tags } = await addTagAction(nodeId, tag);
+        if (tags) {
+          setContent((prev) => {
+            const existing = prev[nodeId];
+            if (!existing) return prev;
+            return { ...prev, [nodeId]: { ...existing, tags } };
+          });
+        }
+      } catch (err) {
+        console.error("addTagAction failed", err);
+        if (prevTags !== undefined) {
+          setContent((prev) => {
+            const existing = prev[nodeId];
+            if (!existing) return prev;
+            return { ...prev, [nodeId]: { ...existing, tags: prevTags! } };
+          });
+        }
+        throw err;
+      }
+    },
+    [role, currentUser],
+  );
+
+  const removeTag = useCallback(
+    async (nodeId: string, tag: string) => {
+      if (!ROLE_PERMISSIONS[role].includes("edit"))
+        throw new Error("편집 권한이 없습니다.");
+      const target = tag.trim();
+      if (!target) return;
+      let prevTags: string[] | undefined;
+      setContent((prev) => {
+        const existing = prev[nodeId];
+        if (!existing) return prev;
+        prevTags = existing.tags;
+        return {
+          ...prev,
+          [nodeId]: {
+            ...existing,
+            tags: existing.tags.filter(
+              (t) => t.toLowerCase() !== target.toLowerCase(),
+            ),
+          },
+        };
+      });
+      try {
+        await removeTagAction(nodeId, target);
+      } catch (err) {
+        console.error("removeTagAction failed", err);
+        if (prevTags !== undefined) {
+          setContent((prev) => {
+            const existing = prev[nodeId];
+            if (!existing) return prev;
+            return { ...prev, [nodeId]: { ...existing, tags: prevTags! } };
+          });
+        }
+        throw err;
+      }
+    },
+    [role],
+  );
+
   const attachPdf = useCallback(
     async (nodeId: string, file: File) => {
       if (!ROLE_PERMISSIONS[role].includes("edit")) {
@@ -853,6 +942,8 @@ export function WorkbenchProvider({
       completeStep,
       recordQuizAnswer,
       attachPdf,
+      addTag,
+      removeTag,
       uploadAttachment,
       deleteAttachment,
       createTreeNode,
@@ -913,6 +1004,8 @@ export function WorkbenchProvider({
       completeStep,
       recordQuizAnswer,
       attachPdf,
+      addTag,
+      removeTag,
       uploadAttachment,
       deleteAttachment,
       createTreeNode,

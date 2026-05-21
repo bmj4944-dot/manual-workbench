@@ -65,6 +65,13 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - **Server Action 본문 1MB → 10MB**: `next.config.mjs`에 `serverActions.bodySizeLimit` 설정 — 1.8MB 파일 첨부 시 undefined 반환되던 문제 해결
 - **WORK_LOG.md 작성** + 메모리 정착
 
+### 2026-05-22 추가
+- **C-1 태그 편집 완료**: 우측 패널 `+ 추가` 버튼이 실제 동작
+  - `lib/actions/content.ts` — `addTagAction` / `removeTagAction` (UPSERT 기반, 케이스-무시 중복 방지, MAX_TAGS=12, MAX_TAG_LEN=24, 콤마 split)
+  - `lib/workbench-context.tsx` — `addTag` / `removeTag` 낙관적 업데이트 (실패 시 prev 롤백)
+  - `components/shell/right-panel.tsx` — `TagsSection` 컴포넌트: `+ 추가` 클릭 → 인라인 input (Enter/콤마/blur 커밋, Esc 취소). 각 태그 칩은 viewer는 read-only, editor는 × 버튼으로 제거
+  - `app/globals.css` — `.tg-removable`, `.tg-x`, `.tg-add` (dashed), `.tg-input` (focused border-accent) 스타일 추가
+
 ---
 
 ## 📋 해야 할 작업
@@ -81,7 +88,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [ ] **B-2 스크립트 카드 / 결정 트리 / 임베드 편집 UI** (현재 삽입만, 콘텐츠 수정 UI 부재)
 
 ### C. 데이터 / 백엔드
-- [ ] **C-1 태그 편집** (`+ 추가` 실제 동작 — document_content.tags array UPDATE)
+- [x] ~~**C-1 태그 편집** (`+ 추가` 실제 동작 — document_content.tags array UPDATE)~~ (2026-05-22)
 - [ ] **C-2 댓글 답글** (스레드 구조; comments에 parent_comment_id)
 - [ ] **C-3 AI 요약 Claude API 연동** (현재 placeholder 시뮬레이션)
 - [ ] **C-4 페이지 통계 실시간 추적** (view/copy/search 카운트 자동 갱신)

@@ -94,6 +94,10 @@ body {
 .topbar .brand {
   display: flex; align-items: center; gap: 12px;
   font-weight: 700; font-size: 17px; letter-spacing: -0.015em;
+  text-align: left;
+}
+.topbar .brand .meta {
+  align-items: flex-start;
 }
 .topbar .brand .logo {
   width: 36px; height: 36px; border-radius: 9px;

@@ -19,26 +19,15 @@ export async function recordPageStatAction(
   documentId: string,
   kind: PageStatKind,
 ) {
-  // DIAGNOSTIC (C-4-debug): structured log so we can grep Vercel Function
-  // Logs for "[page-stat]" to confirm the action is actually being invoked.
-  console.log("[page-stat] action invoked", { documentId, kind });
   const supabase = createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
-    console.log("[page-stat] short-circuit: no user");
-    return { ok: false, reason: "no-user" } as const;
-  }
+  if (!user) return;
 
   const { error } = await supabase.rpc("record_page_stat", {
     p_doc_id: documentId,
     p_kind: kind,
   });
-  if (error) {
-    console.error("[page-stat] rpc error", error);
-    return { ok: false, reason: error.message ?? "rpc" } as const;
-  }
-  console.log("[page-stat] ok", { documentId, kind });
-  return { ok: true } as const;
+  if (error) console.error("recordPageStatAction failed", error);
 }

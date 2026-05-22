@@ -3,15 +3,8 @@
 import { useMemo, useState } from "react";
 import { Bell, Check, ShieldAlert } from "lucide-react";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
-import type { Verification, VerifyState } from "@/lib/types";
-import { cn } from "@/lib/utils";
-
-function verifyState(v: Verification): VerifyState {
-  const ratio = v.lastVerified / v.intervalDays;
-  if (ratio < 0.7) return "fresh";
-  if (ratio < 1.0) return "aging";
-  return "stale";
-}
+import { cn, verifyState } from "@/lib/utils";
+import type { VerifyState } from "@/lib/types";
 
 type Tab = "compliance" | "analytics" | "verify";
 

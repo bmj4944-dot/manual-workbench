@@ -5,6 +5,7 @@ import { MessageCircle, Paperclip } from "lucide-react";
 import { useWorkbench, findNode } from "@/lib/workbench-context";
 import { toast, toastErrorMessage } from "@/lib/toast";
 import { recordPageStatAction } from "@/lib/actions/page-stats";
+import { verifyLabel, verifyState } from "@/lib/utils";
 
 // Throttle "view" events per-tab. Module-level so MainPane unmount/remount
 // (caused by view switches) doesn't reset the window. Keyed by document id;
@@ -41,6 +42,7 @@ export function MainPane() {
     toggleFavorite,
     attachPdf,
     attachments,
+    verifications,
     mode,
   } = useWorkbench();
   const [attaching, setAttaching] = useState(false);
@@ -54,6 +56,8 @@ export function MainPane() {
   const status = node?.status ?? "draft";
   const isPdf = node?.badge === "PDF";
   const isFav = favorites.includes(activeId);
+  const verification = verifications[activeId];
+  const vState = verification ? verifyState(verification) : null;
   const nodeAttachments = attachments[activeId] ?? [];
 
   const canEdit = can("edit");
@@ -168,6 +172,14 @@ export function MainPane() {
                 : "장"}
             </span>
             <span className="tag accent">{STATUS_PILL_KO[status]}</span>
+            {vState && verification && (
+              <span
+                className={`verify-pill ${vState}`}
+                title={`마지막 검증: ${verification.lastVerified}일 전 · 주기 ${verification.intervalDays}일 · 검증자 ${verification.by}`}
+              >
+                {verifyLabel(vState, verification)}
+              </span>
+            )}
             {content?.tags.slice(0, 3).map((tag) => (
               <span key={tag} className="tag">
                 {tag}
@@ -298,11 +310,67 @@ export function MainPane() {
         onUpdate={onUpdate}
         bottomSlot={
           <>
+            {vState === "stale" && verification && (
+              <VerifyBar verification={verification} />
+            )}
             <MustReadBar nodeId={activeId} />
             <FeedbackBar />
           </>
         }
       />
     </>
+  );
+}
+
+// ─── VerifyBar ──────────────────────────────────────────────────────
+// Shown below the doc body when the document's verification interval has
+// elapsed. Re-verification itself (clicking the button) belongs to the
+// verify queue workflow (see C-5 todo) — for now the button is a no-op
+// shell that signals intent.
+function VerifyBar({
+  verification,
+}: {
+  verification: { lastVerified: number; intervalDays: number; by: string };
+}) {
+  const over = Math.max(0, verification.lastVerified - verification.intervalDays);
+  return (
+    <div className="verify-bar" role="alert">
+      <div className="ic" aria-hidden="true">
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.6}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="7" cy="7" r="5.5" />
+          <line x1="7" y1="4" x2="7" y2="7.5" />
+          <circle cx="7" cy="10" r="0.6" fill="currentColor" />
+        </svg>
+      </div>
+      <div className="body">
+        <div className="ti">재검증이 필요합니다</div>
+        <div className="ms">
+          마지막 검증 후 <b>{verification.lastVerified}일</b> 경과 ·
+          주기 <b>{verification.intervalDays}일</b>
+          {over > 0 && (
+            <> · 만료 <b>{over}일</b> 초과</>
+          )}{" "}
+          · 검증자 <b>{verification.by}</b>
+        </div>
+      </div>
+      <button
+        type="button"
+        title="검증 큐 워크플로우는 곧 추가됩니다 (C-5)"
+        onClick={() => {
+          toast.info("재검증 워크플로우는 곧 추가됩니다.");
+        }}
+      >
+        재검증 시작
+      </button>
+    </div>
   );
 }

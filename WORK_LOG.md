@@ -82,6 +82,12 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - 부수효과: multipart 안 거치니까 **한글 파일명 깨짐 자체가 사라짐** — `name` 별도 필드 트릭 불필요
   - 옛 액션 제거: `lib/actions/pdf.ts`, `lib/actions/editor-images.ts` 삭제. `attachments.ts`는 deleteAttachmentAction만 유지
   - `/api/editor-images/[...path]` 라우트는 그대로 (URL 형식 호환)
+- **A-6 verify-pill / ack-bar 완료**: 검증 상태/필독 ack 디자인 정합
+  - `lib/utils.ts` — `verifyState(v)` + `verifyLabel(state, v)` 공유 (이전엔 dashboard-view 안에 inline. fresh/aging/stale 분기 기준은 일관 유지)
+  - `main-pane.tsx` — tag-row에 `.verify-pill` (fresh/aging/stale) + bottomSlot에 stale 상태에서만 `.verify-bar` (재검증 안내). 재검증 버튼은 C-5에서 본격 처리 예정 (현재는 토스트로 안내)
+  - `must-read-bar.tsx` — Tailwind 유틸 → manual2의 `.ack-bar` 클래스 마이그레이션. 아이콘도 inline SVG로 교체 (lucide-react 의존 제거). done 상태 시 버튼은 disabled로 표시
+  - 모든 스타일은 globals.css에 이미 있던 토큰 재사용 (다크모드/stale-pulse 애니메이션 포함)
+  - dashboard-view에서 verifyState 함수 재사용 (DRY)
 - **C-4 페이지 통계 실시간 완료**: view/copy/search 카운트 자동 갱신
   - **마이그레이션 0014_page_stats_writes.sql**: `record_page_stat(p_doc_id, p_kind)` RPC (SECURITY DEFINER, on conflict upsert, atomic +1). authenticated에 execute 권한
   - `lib/actions/page-stats.ts` — `recordPageStatAction(documentId, kind)` fire-and-forget. unauthenticated는 silent no-op. `revalidatePath` 안 함 (메트릭이라 다음 fetch 시 자동 반영)
@@ -125,7 +131,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 ### A. UI 디자인 격차 마무리 (manual2와 1:1)
 - [ ] **A-4 챗봇 위젯** (chatbot.jsx) — 우하단 플로팅, Claude API 기반 매뉴얼 Q&A
 - [ ] **A-5 알림 벨 팝오버 디테일** (.notif-pop 디자인 정합 확인)
-- [ ] **A-6 verify-pill / ack-bar** 디자인 정합 (doc-head에 검증됨/만료임박/재검증 pill, ack-bar 별도 디자인)
+- [x] ~~**A-6 verify-pill / ack-bar** 디자인 정합 (doc-head에 검증됨/만료임박/재검증 pill, ack-bar 별도 디자인)~~ (2026-05-22)
 - [x] ~~**A-7 doc-head 첨부 pill** (.attach-pill — 첨부 개수 빠른 보기)~~ (2026-05-22) — `nodeAttachments.length > 0`일 때만 표시, 클릭 시 우측 패널 첨부 섹션(`#attachments-section`)으로 smooth scroll. `.attach-pill` 스타일은 globals.css에 이미 정의되어 있어 재사용
 - [ ] **A-8 collab cursors** (시뮬레이션 원격 사용자)
 

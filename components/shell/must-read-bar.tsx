@@ -1,9 +1,13 @@
 "use client";
 
-import { Check, ShieldAlert } from "lucide-react";
 import { useWorkbench } from "@/lib/workbench-context";
-import { cn } from "@/lib/utils";
 
+/**
+ * Must-read acknowledgement bar. Renders at the bottom of the doc when
+ * the active document is on the must-read list. Uses the design system's
+ * `.ack-bar` class (manual2 parity) — orange "to-do" state until the
+ * user clicks 확인했습니다, then flips to green "done" state.
+ */
 export function MustReadBar({ nodeId }: { nodeId: string }) {
   const { acked, ack, mustRead } = useWorkbench();
   const required = mustRead.has(nodeId);
@@ -11,37 +15,71 @@ export function MustReadBar({ nodeId }: { nodeId: string }) {
   const done = acked.has(nodeId);
 
   return (
-    <div
-      className={cn(
-        "mt-6 flex items-center gap-3 rounded-[var(--radius-lg)] border px-4 py-3",
-        done
-          ? "border-ok/40 bg-[oklch(0.92_0.06_145_/_0.4)] text-[oklch(0.38_0.13_145)]"
-          : "border-warn/50 bg-[oklch(0.96_0.05_75_/_0.6)] text-warn",
-      )}
-    >
-      {done ? <Check size={16} /> : <ShieldAlert size={16} />}
-      <div className="flex-1 text-[12.5px]">
+    <div className={`ack-bar${done ? " done" : ""}`} role="status">
+      <div className="ico" aria-hidden="true">
+        {done ? <IcCheck /> : <IcShield />}
+      </div>
+      <div className="body">
         {done ? (
-          <span>
-            <strong>확인 완료</strong> — 이 항목은 필독으로 지정되어 있으며 본인이
-            이미 확인했습니다.
-          </span>
+          <>
+            <div className="ti">확인 완료</div>
+            <div className="ms">
+              이 항목은 필독으로 지정되어 있으며 본인이 이미 확인했습니다.
+            </div>
+          </>
         ) : (
-          <span>
-            <strong>필독 항목입니다</strong> — 끝까지 읽으신 뒤 확인해주세요. 관리
-            대시보드에서 미확인 멤버에게 알림이 발송될 수 있습니다.
-          </span>
+          <>
+            <div className="ti">필독 항목입니다</div>
+            <div className="ms">
+              끝까지 읽으신 뒤 확인해주세요. 관리 대시보드에서 미확인
+              멤버에게 알림이 발송될 수 있습니다.
+            </div>
+          </>
         )}
       </div>
-      {!done && (
-        <button
-          type="button"
-          onClick={() => ack(nodeId)}
-          className="rounded-md bg-warn px-3 py-1 text-[12px] font-medium text-white hover:opacity-90"
-        >
-          확인했습니다
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => ack(nodeId)}
+        disabled={done}
+      >
+        {done ? "확인 완료" : "확인했습니다"}
+      </button>
     </div>
+  );
+}
+
+function IcCheck() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="3 8.5 6.5 12 13 5" />
+    </svg>
+  );
+}
+
+function IcShield() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M8 1.5 3 3.5v4.5c0 3 2.2 5.4 5 6.5 2.8-1.1 5-3.5 5-6.5V3.5L8 1.5z" />
+      <line x1="8" y1="6" x2="8" y2="9" />
+      <circle cx="8" cy="11" r="0.7" fill="currentColor" />
+    </svg>
   );
 }

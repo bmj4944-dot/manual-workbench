@@ -71,6 +71,17 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - `lib/workbench-context.tsx` — `addTag` / `removeTag` 낙관적 업데이트 (실패 시 prev 롤백)
   - `components/shell/right-panel.tsx` — `TagsSection` 컴포넌트: `+ 추가` 클릭 → 인라인 input (Enter/콤마/blur 커밋, Esc 취소). 각 태그 칩은 viewer는 read-only, editor는 × 버튼으로 제거
   - `app/globals.css` — `.tg-removable`, `.tg-x`, `.tg-add` (dashed), `.tg-input` (focused border-accent) 스타일 추가
+- **B-3 4.5MB 한계 회피 완료**: signed URL + direct-to-Storage 패턴으로 PDF/첨부/에디터이미지 모두 전환
+  - `lib/actions/uploads.ts` — 통합 모듈: `createUploadSignedUrlAction(req)` (role/size/mime 검증 → signed upload URL) + `finalizeAttachmentAction` / `finalizePdfAction` / `finalizeEditorImageAction` (작은 JSON body로 DB row 생성)
+  - 3군데 클라이언트 전환:
+    - `workbench-context.attachPdf` / `uploadAttachment`
+    - `components/pdf/pdf-viewer.tsx` (드롭존 업로드)
+    - `components/editor/document-editor.tsx onDropDoc` (인라인 이미지)
+  - 패턴: ① server action으로 signed URL 발급 → ② 브라우저가 supabase-js로 직접 `uploadToSignedUrl` → ③ finalize action으로 DB row 생성
+  - 한계: PDF 50MB / 첨부 25MB / 에디터이미지 8MB (각 서버 검증)
+  - 부수효과: multipart 안 거치니까 **한글 파일명 깨짐 자체가 사라짐** — `name` 별도 필드 트릭 불필요
+  - 옛 액션 제거: `lib/actions/pdf.ts`, `lib/actions/editor-images.ts` 삭제. `attachments.ts`는 deleteAttachmentAction만 유지
+  - `/api/editor-images/[...path]` 라우트는 그대로 (URL 형식 호환)
 - **D-3 에러 바운더리 완료**: 예상 못 한 렌더 에러에 대한 폴백 UI
   - `app/error.tsx` — layout 안쪽 폴백: 경고 아이콘 + 메시지 + digest 배지(에러 ID) + "다시 시도"(reset) / "새로고침" 버튼. manual2 디자인 토큰(panel/line/accent) 사용
   - `app/global-error.tsx` — layout 자체가 깨질 때 폴백: 자체 `<html>/<body>` + inline 스타일 (globals.css 로드 보장 안 됨)
@@ -108,7 +119,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 ### B. 에디터 추가 기능
 - [x] ~~**B-1 이미지 실제 Storage 업로드** (현재 drag-drop 시 blob URL만 — Storage에 업로드 + URL 영구)~~ (2026-05-22)
 - [ ] **B-2 스크립트 카드 / 결정 트리 / 임베드 편집 UI** (현재 삽입만, 콘텐츠 수정 UI 부재)
-- [ ] **B-3 4.5MB 한계 회피 — direct-to-Storage signed URL 패턴** (Vercel function payload cap. 초과 시 server action이 throw 없이 undefined 반환 → 콘솔에 `uploadAttachmentAction returned invalid payload undefined`로 노출됨. PDF/일반첨부/에디터이미지 3군데 모두 적용 필요. 임시방편으로는 클라이언트 사전 사이즈 체크 + 명확한 토스트)
+- [x] ~~**B-3 4.5MB 한계 회피 — direct-to-Storage signed URL 패턴**~~ (2026-05-22)
 
 ### C. 데이터 / 백엔드
 - [x] ~~**C-1 태그 편집** (`+ 추가` 실제 동작 — document_content.tags array UPDATE)~~ (2026-05-22)

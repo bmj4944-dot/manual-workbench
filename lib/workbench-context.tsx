@@ -37,11 +37,13 @@ import { acknowledgeMustReadAction } from "./actions/compliance";
 import { addTagAction, removeTagAction, saveBodyAction } from "./actions/content";
 import { toast, toastErrorMessage } from "./toast";
 import { setNodeStatusAction } from "./actions/workflow";
-import { uploadPdfAction } from "./actions/pdf";
 import {
-  deleteAttachmentAction,
-  uploadAttachmentAction,
-} from "./actions/attachments";
+  createUploadSignedUrlAction,
+  finalizeAttachmentAction,
+  finalizePdfAction,
+} from "./actions/uploads";
+import { deleteAttachmentAction } from "./actions/attachments";
+import { createClient as createBrowserSupabase } from "./supabase/client";
 import {
   addSiblingAction,
   createDocumentAction,
@@ -634,15 +636,29 @@ export function WorkbenchProvider({
       if (!ROLE_PERMISSIONS[role].includes("edit")) {
         throw new Error("편집 권한이 없습니다.");
       }
-      const fd = new FormData();
-      fd.set("file", file);
-      fd.set("name", file.name); // explicit UTF-8 name (avoids multipart 한글 깨짐)
-      const created = await uploadAttachmentAction(nodeId, fd);
-      if (!created || !created.fileName) {
-        console.error("uploadAttachmentAction returned invalid payload", created);
-        toast.error("첨부 업로드에 실패했습니다.");
-        return;
-      }
+      // 1) Ask the server for a signed upload URL (gates role/size/path).
+      const grant = await createUploadSignedUrlAction({
+        kind: "attachment",
+        documentId: nodeId,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || "application/octet-stream",
+      });
+      // 2) Browser uploads straight to Supabase Storage — bypasses Vercel's
+      //    4.5MB function payload cap entirely.
+      const supabase = createBrowserSupabase();
+      const { error: upErr } = await supabase.storage
+        .from(grant.bucket)
+        .uploadToSignedUrl(grant.path, grant.token, file);
+      if (upErr) throw upErr;
+      // 3) Finalize: insert the DB row (small JSON body, well under 4.5MB).
+      const created = await finalizeAttachmentAction({
+        documentId: nodeId,
+        storagePath: grant.path,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type || null,
+      });
       setAttachments((prev) => ({
         ...prev,
         [nodeId]: [created, ...(prev[nodeId] ?? [])],
@@ -879,9 +895,20 @@ export function WorkbenchProvider({
       if (!ROLE_PERMISSIONS[role].includes("edit")) {
         throw new Error("편집 권한이 없습니다.");
       }
-      const fd = new FormData();
-      fd.set("file", file);
-      await uploadPdfAction(nodeId, fd);
+      const grant = await createUploadSignedUrlAction({
+        kind: "pdf",
+        documentId: nodeId,
+        fileSize: file.size,
+      });
+      const supabase = createBrowserSupabase();
+      const { error: upErr } = await supabase.storage
+        .from(grant.bucket)
+        .uploadToSignedUrl(grant.path, grant.token, file, { upsert: true });
+      if (upErr) throw upErr;
+      await finalizePdfAction({
+        documentId: nodeId,
+        storagePath: grant.path,
+      });
       // On success, mirror server state into local optimistic stores so the
       // user immediately drops into the PDF viewer (badge='PDF') with the
       // newly uploaded file (pdfStoragePath set).

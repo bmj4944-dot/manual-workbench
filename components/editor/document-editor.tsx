@@ -10,7 +10,11 @@ import {
 import { EMBED_KEYS, hydrateBody } from "./body-hydration";
 import { TableEditorOverlay } from "./table-overlay";
 import { useWorkbench } from "@/lib/workbench-context";
-import { uploadEditorImageAction } from "@/lib/actions/editor-images";
+import {
+  createUploadSignedUrlAction,
+  finalizeEditorImageAction,
+} from "@/lib/actions/uploads";
+import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { toast, toastErrorMessage } from "@/lib/toast";
 import type { TeamMember } from "@/lib/types";
 
@@ -661,12 +665,25 @@ export function DocumentEditor({
     frame.style.background = "";
     frame.innerHTML = `<img src="${previewUrl}" data-uploading="1" style="${imgStyle};opacity:0.7"/>`;
 
-    const fd = new FormData();
-    fd.set("file", file);
-
     void (async () => {
       try {
-        const { url } = await uploadEditorImageAction(activeId, fd);
+        // 1) Signed upload URL (gates role/size/mime).
+        const grant = await createUploadSignedUrlAction({
+          kind: "editor-image",
+          documentId: activeId,
+          fileSize: file.size,
+          mimeType: file.type || "application/octet-stream",
+        });
+        // 2) Browser uploads direct to Supabase Storage — no Vercel hop.
+        const supabase = createBrowserSupabase();
+        const { error: upErr } = await supabase.storage
+          .from(grant.bucket)
+          .uploadToSignedUrl(grant.path, grant.token, file);
+        if (upErr) throw upErr;
+        // 3) Resolve the served URL we should put in the document HTML.
+        const { url } = await finalizeEditorImageAction({
+          storagePath: grant.path,
+        });
         const img = frame.querySelector(
           'img[data-uploading="1"]',
         ) as HTMLImageElement | null;
@@ -678,7 +695,7 @@ export function DocumentEditor({
         URL.revokeObjectURL(previewUrl);
         notifyChange();
       } catch (err) {
-        console.error("uploadEditorImageAction failed", err);
+        console.error("editor image upload failed", err);
         toast.error(toastErrorMessage(err, "이미지 업로드에 실패했습니다."));
         // Roll back to the empty drop zone so the user can retry. Removing
         // just the <img> keeps the surrounding .img-block + caption intact.

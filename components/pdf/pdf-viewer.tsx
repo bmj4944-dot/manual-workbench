@@ -10,7 +10,11 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
-import { uploadPdfAction } from "@/lib/actions/pdf";
+import {
+  createUploadSignedUrlAction,
+  finalizePdfAction,
+} from "@/lib/actions/uploads";
+import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -142,10 +146,22 @@ export function PdfViewer({ nodeId }: Props) {
         setMode("rendered");
         setPage(1);
 
-        const fd = new FormData();
-        fd.set("file", file);
-        fd.set("pageCount", String(loaded.numPages));
-        await uploadPdfAction(nodeId, fd);
+        // Direct-to-Storage signed URL upload (bypasses Vercel's 4.5MB cap).
+        const grant = await createUploadSignedUrlAction({
+          kind: "pdf",
+          documentId: nodeId,
+          fileSize: file.size,
+        });
+        const supabase = createBrowserSupabase();
+        const { error: upErr } = await supabase.storage
+          .from(grant.bucket)
+          .uploadToSignedUrl(grant.path, grant.token, file, { upsert: true });
+        if (upErr) throw upErr;
+        await finalizePdfAction({
+          documentId: nodeId,
+          storagePath: grant.path,
+          pageCount: loaded.numPages,
+        });
       } catch (e) {
         setErr(e instanceof Error ? e.message : "PDF 업로드 실패");
       } finally {

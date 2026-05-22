@@ -805,12 +805,30 @@ function CommentsTab({
   list: Comment[];
 }) {
   const { addComment, resolveComment } = useWorkbench();
-  const [draft, setDraft] = useState("");
   const [composerOpen, setComposerOpen] = useState(false);
+  // Active reply target — the root comment whose inline reply composer is open.
+  // null = no reply composer; only one open at a time keeps the UI calm.
+  const [replyTo, setReplyTo] = useState<string | null>(null);
+
+  // Split into roots (no parent) and replies (grouped by their root id).
+  // `list` arrives newest-first from the server; roots stay newest-first
+  // (matches existing UX) and replies inside a thread are oldest-first
+  // (reads like a conversation).
+  const roots = list.filter((c) => !c.parentId);
+  // Replies grouped by their root id. Plain object instead of Map to dodge
+  // TS Map-iteration / downlevelIteration noise. Each thread is rendered
+  // oldest-first so it reads like a conversation; `list` arrives newest-
+  // first from the server, so reversing the picked subset works.
+  const repliesByParent: Record<string, Comment[]> = {};
+  for (let i = list.length - 1; i >= 0; i--) {
+    const c = list[i];
+    if (!c.parentId) continue;
+    (repliesByParent[c.parentId] ??= []).push(c);
+  }
 
   return (
     <div className="comments">
-      {list.length === 0 ? (
+      {list.length === 0 && (
         <div
           style={{
             textAlign: "center",
@@ -823,26 +841,44 @@ function CommentsTab({
             아직 댓글이 없습니다.
           </div>
         </div>
-      ) : (
-        list.map((c) => (
-          <div key={c.id} className={`c-item${c.resolved ? " resolved" : ""}`}>
-            <div className="c-hd">
-              <div className="av" style={{ background: c.color }}>
-                {c.initials}
-              </div>
-              <div className="nm">{c.who}</div>
-              <div className="when">{c.when}</div>
-            </div>
-            <div className="c-body">{c.body}</div>
-            <div className="c-actions">
-              <button onClick={() => setComposerOpen(true)}>답글</button>
-              <button onClick={() => resolveComment(nodeId, c.id)}>
-                {c.resolved ? "해결됨 ✓" : "해결"}
-              </button>
-            </div>
-          </div>
-        ))
       )}
+
+      {roots.map((root) => {
+        const replies = repliesByParent[root.id] ?? [];
+        const replyOpen = replyTo === root.id;
+        return (
+          <div key={root.id} className="c-thread">
+            <CommentRow
+              c={root}
+              showReply
+              showResolve
+              onReply={() => setReplyTo(replyOpen ? null : root.id)}
+              onResolve={() => resolveComment(nodeId, root.id)}
+            />
+            {replies.length > 0 && (
+              <div className="c-replies">
+                {replies.map((r) => (
+                  <CommentRow key={r.id} c={r} />
+                ))}
+              </div>
+            )}
+            {replyOpen && (
+              <div className="c-reply-form">
+                <CommentComposer
+                  autoFocus
+                  placeholder={`${root.who}님에게 답글…`}
+                  submitLabel="답글 게시"
+                  onSubmit={(text) => {
+                    addComment(nodeId, text, root.id);
+                    setReplyTo(null);
+                  }}
+                  onCancel={() => setReplyTo(null)}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {!composerOpen ? (
         <button
@@ -864,80 +900,149 @@ function CommentsTab({
           + 댓글 남기기
         </button>
       ) : (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const trimmed = draft.trim();
-            if (!trimmed) return;
-            addComment(nodeId, trimmed);
-            setDraft("");
-            setComposerOpen(false);
-          }}
-          style={{
-            marginTop: 8,
-            padding: 10,
-            borderRadius: 8,
-            background: "var(--panel)",
-            border: "1px solid var(--line)",
-          }}
-        >
-          <textarea
+        <div style={{ marginTop: 8 }}>
+          <CommentComposer
             autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
             placeholder="댓글 — @이름으로 멤버 멘션"
-            rows={3}
-            style={{
-              width: "100%",
-              border: 0,
-              background: "transparent",
-              outline: "none",
-              font: "inherit",
-              fontSize: 12.5,
-              resize: "none",
-              color: "var(--ink)",
+            submitLabel="게시"
+            onSubmit={(text) => {
+              addComment(nodeId, text);
+              setComposerOpen(false);
             }}
+            onCancel={() => setComposerOpen(false)}
           />
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
-            <button
-              type="button"
-              onClick={() => {
-                setDraft("");
-                setComposerOpen(false);
-              }}
-              style={{
-                padding: "5px 10px",
-                borderRadius: 5,
-                border: "1px solid var(--line)",
-                background: "var(--panel)",
-                color: "var(--ink-3)",
-                fontSize: 11.5,
-                cursor: "pointer",
-              }}
-            >
-              취소
-            </button>
-            <button
-              type="submit"
-              disabled={!draft.trim()}
-              style={{
-                padding: "5px 12px",
-                borderRadius: 5,
-                border: 0,
-                background: "var(--accent)",
-                color: "white",
-                fontSize: 11.5,
-                fontWeight: 500,
-                cursor: draft.trim() ? "pointer" : "not-allowed",
-                opacity: draft.trim() ? 1 : 0.5,
-              }}
-            >
-              게시
-            </button>
-          </div>
-        </form>
+        </div>
       )}
     </div>
+  );
+}
+
+function CommentRow({
+  c,
+  showReply,
+  showResolve,
+  onReply,
+  onResolve,
+}: {
+  c: Comment;
+  showReply?: boolean;
+  showResolve?: boolean;
+  onReply?: () => void;
+  onResolve?: () => void;
+}) {
+  return (
+    <div className={`c-item${c.resolved ? " resolved" : ""}`}>
+      <div className="c-hd">
+        <div className="av" style={{ background: c.color }}>
+          {c.initials}
+        </div>
+        <div className="nm">{c.who}</div>
+        <div className="when">{c.when}</div>
+      </div>
+      <div className="c-body">{c.body}</div>
+      {(showReply || showResolve) && (
+        <div className="c-actions">
+          {showReply && (
+            <button type="button" onClick={onReply}>
+              답글
+            </button>
+          )}
+          {showResolve && (
+            <button type="button" onClick={onResolve}>
+              {c.resolved ? "해결됨 ✓" : "해결"}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CommentComposer({
+  autoFocus,
+  placeholder,
+  submitLabel,
+  onSubmit,
+  onCancel,
+}: {
+  autoFocus?: boolean;
+  placeholder: string;
+  submitLabel: string;
+  onSubmit: (text: string) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState("");
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        const trimmed = draft.trim();
+        if (!trimmed) return;
+        onSubmit(trimmed);
+        setDraft("");
+      }}
+      style={{
+        padding: 10,
+        borderRadius: 8,
+        background: "var(--panel)",
+        border: "1px solid var(--line)",
+      }}
+    >
+      <textarea
+        autoFocus={autoFocus}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder={placeholder}
+        rows={3}
+        style={{
+          width: "100%",
+          border: 0,
+          background: "transparent",
+          outline: "none",
+          font: "inherit",
+          fontSize: 12.5,
+          resize: "none",
+          color: "var(--ink)",
+        }}
+      />
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 6 }}>
+        <button
+          type="button"
+          onClick={() => {
+            setDraft("");
+            onCancel();
+          }}
+          style={{
+            padding: "5px 10px",
+            borderRadius: 5,
+            border: "1px solid var(--line)",
+            background: "var(--panel)",
+            color: "var(--ink-3)",
+            fontSize: 11.5,
+            cursor: "pointer",
+          }}
+        >
+          취소
+        </button>
+        <button
+          type="submit"
+          disabled={!draft.trim()}
+          style={{
+            padding: "5px 12px",
+            borderRadius: 5,
+            border: 0,
+            background: "var(--accent)",
+            color: "white",
+            fontSize: 11.5,
+            fontWeight: 500,
+            cursor: draft.trim() ? "pointer" : "not-allowed",
+            opacity: draft.trim() ? 1 : 0.5,
+          }}
+        >
+          {submitLabel}
+        </button>
+      </div>
+    </form>
   );
 }
 

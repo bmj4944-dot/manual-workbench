@@ -82,6 +82,14 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - 부수효과: multipart 안 거치니까 **한글 파일명 깨짐 자체가 사라짐** — `name` 별도 필드 트릭 불필요
   - 옛 액션 제거: `lib/actions/pdf.ts`, `lib/actions/editor-images.ts` 삭제. `attachments.ts`는 deleteAttachmentAction만 유지
   - `/api/editor-images/[...path]` 라우트는 그대로 (URL 형식 호환)
+- **C-2 댓글 답글 완료**: 2-level 스레드 구조
+  - **마이그레이션 0016_comment_threads.sql**: `comments.parent_comment_id uuid references comments(id) on delete cascade` + index
+  - `lib/actions/comments.ts` — `addCommentAction(documentId, body, parentId?)`. **single-level flatten**: 사용자가 답글의 답글을 시도하면 그 답글의 root에 평면화 (DB는 deeper 허용하지만 UI가 단순)
+  - `lib/data/comments.ts` — parent_comment_id select + Comment.parentId 반환
+  - `lib/workbench-context.tsx` — `addComment(nodeId, body, parentId?)` 낙관적 update, 같은 flatten 로직 클라이언트에도
+  - `lib/types.ts` — `Comment.parentId?: string | null` 추가
+  - `right-panel.tsx CommentsTab` 재작성: 루트 + 그 아래 자식 들여쓰기, 답글 버튼이 인라인 컴포저 토글, 자식은 더 작은 사이즈 + 회색 배경
+  - `app/globals.css` — `.c-thread`, `.c-replies` (24px 들여쓰기 + accent border-left), `.c-reply-form` 스타일
 - **C-5 검증 큐 워크플로우 완료**: 재검증 버튼이 실제 동작
   - **마이그레이션 0015_verifications_writes.sql**: authenticated UPDATE/INSERT 정책. role 게이팅은 Server Action에서 (다른 액션과 동일 패턴)
   - `lib/actions/verifications.ts` — `reverifyDocumentAction`: 기존 행 있으면 `last_verified_at + verified_by`만 갱신(interval_days 보존), 없으면 default 90일로 INSERT. requires `review` 권한 (reviewer/admin)
@@ -148,7 +156,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 
 ### C. 데이터 / 백엔드
 - [x] ~~**C-1 태그 편집** (`+ 추가` 실제 동작 — document_content.tags array UPDATE)~~ (2026-05-22)
-- [ ] **C-2 댓글 답글** (스레드 구조; comments에 parent_comment_id)
+- [x] ~~**C-2 댓글 답글** (스레드 구조; comments에 parent_comment_id)~~ (2026-05-22) — **마이그레이션 0016 적용 필요**
 - [ ] **C-3 AI 요약 Claude API 연동** (현재 placeholder 시뮬레이션)
 - [x] ~~**C-4 페이지 통계 실시간 추적** (view/copy/search 카운트 자동 갱신)~~ (2026-05-22) — **마이그레이션 0014 적용 필요** (SQL Editor)
 - [ ] **C-4-debug 트래킹 silent fail 원인 추적**: 마이그레이션은 적용되어 SQL Editor에서 `record_page_stat(...)` 직접 호출은 정상(카운트 +1)인데, 프로덕션 클라에서 자동 트래킹은 카운트가 안 올라감. 콘솔 에러도 없고 useEffect→server action 호출 사이 어딘가에서 silent. 진단 패치(`6dcc9a3`) 시 토스트도 안 떴음 → useEffect 자체가 발동 안 하거나 fire-and-forget이 막힘. 다음 시도: server action 진입 시 `console.log` + Vercel function logs 또는 main-pane mount 자체에 진단 토스트

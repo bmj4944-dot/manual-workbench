@@ -44,6 +44,7 @@ export type Comment = {
   when: string;
   body: string;
   resolved?: boolean;
+  parentId?: string | null;
 };
 
 export type Version = {

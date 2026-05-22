@@ -128,7 +128,7 @@ type WorkbenchState = {
   setRole: (r: Role) => void;
   can: (action: string) => boolean;
   setNodeStatus: (id: string, status: NodeStatus) => boolean;
-  addComment: (nodeId: string, body: string) => void;
+  addComment: (nodeId: string, body: string, parentId?: string | null) => void;
   resolveComment: (nodeId: string, commentId: string) => void;
   setSaveState: (s: SaveState) => void;
   setDirty: (id: string, dirty: boolean) => void;
@@ -457,11 +457,19 @@ export function WorkbenchProvider({
   );
 
   const addComment = useCallback(
-    (nodeId: string, body: string) => {
+    (nodeId: string, body: string, parentId?: string | null) => {
       const trimmed = body.trim();
       if (!trimmed) return;
       const me = currentUser ?? members.find((m) => m.role === role) ?? members[0];
       if (!me) return;
+      // Flatten on the client too: if user clicks 답글 on a reply, attach
+      // to its root. Mirrors what addCommentAction does server-side so the
+      // optimistic row matches the eventual server row.
+      let resolvedParent: string | null = null;
+      if (parentId) {
+        const existing = (comments[nodeId] ?? []).find((c) => c.id === parentId);
+        resolvedParent = existing?.parentId ?? existing?.id ?? null;
+      }
       const optimisticId = `tmp-${Date.now()}`;
       const newComment: Comment = {
         id: optimisticId,
@@ -470,12 +478,13 @@ export function WorkbenchProvider({
         color: me.color,
         when: "방금",
         body: trimmed,
+        parentId: resolvedParent,
       };
       setComments((prev) => ({
         ...prev,
         [nodeId]: [newComment, ...(prev[nodeId] ?? [])],
       }));
-      addCommentAction(nodeId, trimmed).catch((err) => {
+      addCommentAction(nodeId, trimmed, resolvedParent).catch((err) => {
         console.error("addCommentAction failed", err);
         toast.error(toastErrorMessage(err, "댓글 등록에 실패했습니다."));
         setComments((prev) => ({
@@ -484,7 +493,7 @@ export function WorkbenchProvider({
         }));
       });
     },
-    [role, members, currentUser],
+    [role, members, currentUser, comments],
   );
 
   const resolveComment = useCallback((nodeId: string, commentId: string) => {

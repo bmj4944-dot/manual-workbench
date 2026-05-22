@@ -854,6 +854,30 @@ body {
 .comments .c-item .c-actions button:hover { color: var(--accent); }
 .comments .resolved { opacity: 0.5; }
 
+/* Threaded replies — second level only (DB allows deeper, UI flattens) */
+.comments .c-thread { margin-bottom: 10px; }
+.comments .c-thread .c-item { margin-bottom: 6px; }
+.comments .c-replies {
+  margin-left: 24px;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: 4px;
+}
+.comments .c-replies .c-item {
+  padding: 8px 10px;
+  font-size: 12px;
+  background: var(--bg-2);
+}
+.comments .c-replies .c-item .c-hd .av { width: 18px; height: 18px; font-size: 9px; }
+.comments .c-replies .c-item .c-body { font-size: 12px; }
+.comments .c-reply-form {
+  margin-left: 24px;
+  padding-left: 10px;
+  border-left: 2px solid var(--accent-3);
+  margin-bottom: 10px;
+}
+
 /* history */
 .history .h-item {
   display: flex; gap: 10px;

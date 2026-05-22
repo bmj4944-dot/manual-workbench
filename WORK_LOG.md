@@ -71,6 +71,12 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - `lib/workbench-context.tsx` — `addTag` / `removeTag` 낙관적 업데이트 (실패 시 prev 롤백)
   - `components/shell/right-panel.tsx` — `TagsSection` 컴포넌트: `+ 추가` 클릭 → 인라인 input (Enter/콤마/blur 커밋, Esc 취소). 각 태그 칩은 viewer는 read-only, editor는 × 버튼으로 제거
   - `app/globals.css` — `.tg-removable`, `.tg-x`, `.tg-add` (dashed), `.tg-input` (focused border-accent) 스타일 추가
+- **B-1 이미지 Storage 업로드 완료**: 에디터 인라인 이미지가 새로고침 후에도 유지됨
+  - `lib/actions/editor-images.ts` — `uploadEditorImageAction`: `documents-attachments` 버킷 재사용, `_editor/<docId>/<uuid>.<ext>` prefix로 분리. 8MB 제한, 5종 mime 화이트리스트(png/jpeg/gif/webp/svg)
+  - `app/api/editor-images/[...path]/route.ts` — 인증된 사용자만 stream. `_editor/` prefix 강제로 일반 첨부 우회 fetch 차단. 1시간 immutable 캐시
+  - `components/editor/document-editor.tsx` — `onDropDoc`: blob URL 즉시 미리보기 (opacity 0.7 + data-uploading) + 백그라운드 upload → 성공 시 src 교체 + revokeObjectURL + notifyChange. 실패 시 frame 원복 + 토스트
+  - 마이그레이션 불필요 (기존 버킷·RLS 재사용)
+  - 알려진 제약: 업로드 중 다른 문서로 전환하면 그 이미지는 누락됨 (현재 문서의 본문 저장은 idempotent하니 다른 문서에 영향 없음)
 - **D-1 토스트 알림 인프라 완료**: 모든 server action 실패가 사용자에게 노출됨
   - `lib/toast.ts` — 모듈-싱글톤 store (react-hot-toast 패턴). `toast.success/error/info` API + `toastErrorMessage(err, fallback)` 헬퍼. React 외부(catch 블록)에서도 호출 가능
   - `components/shell/toast-viewport.tsx` — 구독자 컴포넌트, 우하단 stack, 자동 dismiss + × 버튼
@@ -91,7 +97,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [ ] **A-8 collab cursors** (시뮬레이션 원격 사용자)
 
 ### B. 에디터 추가 기능
-- [ ] **B-1 이미지 실제 Storage 업로드** (현재 drag-drop 시 blob URL만 — Storage에 업로드 + URL 영구)
+- [x] ~~**B-1 이미지 실제 Storage 업로드** (현재 drag-drop 시 blob URL만 — Storage에 업로드 + URL 영구)~~ (2026-05-22)
 - [ ] **B-2 스크립트 카드 / 결정 트리 / 임베드 편집 UI** (현재 삽입만, 콘텐츠 수정 UI 부재)
 
 ### C. 데이터 / 백엔드

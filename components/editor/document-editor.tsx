@@ -10,6 +10,8 @@ import {
 import { EMBED_KEYS, hydrateBody } from "./body-hydration";
 import { TableEditorOverlay } from "./table-overlay";
 import { useWorkbench } from "@/lib/workbench-context";
+import { uploadEditorImageAction } from "@/lib/actions/editor-images";
+import { toast, toastErrorMessage } from "@/lib/toast";
 import type { TeamMember } from "@/lib/types";
 
 // ─── Inline SVG icons (matches design_handoff icons.jsx) ─────────────
@@ -236,7 +238,7 @@ export function DocumentEditor({
   onUpdate,
   bottomSlot,
 }: Props) {
-  const { members } = useWorkbench();
+  const { members, activeId } = useWorkbench();
   const docRef = useRef<HTMLDivElement>(null);
   const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
   const [colorOpen, setColorOpen] = useState<null | "fg" | "bg">(null);
@@ -643,15 +645,48 @@ export function DocumentEditor({
     e.preventDefault();
     target.classList.remove("dropping");
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith("image/")) {
-      const url = URL.createObjectURL(file);
-      const frame = target.querySelector(".img-frame") as HTMLElement | null;
-      if (frame) {
-        frame.style.background = "";
-        frame.innerHTML = `<img src="${url}" style="max-width:100%;max-height:280px;object-fit:contain;border-radius:8px"/>`;
+    if (!file || !file.type.startsWith("image/")) return;
+
+    const frame = target.querySelector(".img-frame") as HTMLElement | null;
+    if (!frame) return;
+
+    // Show a blob preview immediately so the user sees feedback while the
+    // upload runs. We intentionally do NOT notifyChange here — saving the
+    // blob URL to the DB would persist a broken reference if the upload
+    // failed or if the user navigated away mid-upload. We only save once
+    // the permanent URL is in place.
+    const previewUrl = URL.createObjectURL(file);
+    const imgStyle =
+      "max-width:100%;max-height:280px;object-fit:contain;border-radius:8px";
+    frame.style.background = "";
+    frame.innerHTML = `<img src="${previewUrl}" data-uploading="1" style="${imgStyle};opacity:0.7"/>`;
+
+    const fd = new FormData();
+    fd.set("file", file);
+
+    void (async () => {
+      try {
+        const { url } = await uploadEditorImageAction(activeId, fd);
+        const img = frame.querySelector(
+          'img[data-uploading="1"]',
+        ) as HTMLImageElement | null;
+        if (img) {
+          img.src = url;
+          img.removeAttribute("data-uploading");
+          img.style.opacity = "";
+        }
+        URL.revokeObjectURL(previewUrl);
+        notifyChange();
+      } catch (err) {
+        console.error("uploadEditorImageAction failed", err);
+        toast.error(toastErrorMessage(err, "이미지 업로드에 실패했습니다."));
+        // Roll back to the empty drop zone so the user can retry. Removing
+        // just the <img> keeps the surrounding .img-block + caption intact.
+        URL.revokeObjectURL(previewUrl);
+        frame.innerHTML = "이미지를 여기에 놓으세요";
+        notifyChange();
       }
-    }
-    notifyChange();
+    })();
   };
 
   // ── Checkbox click toggling (live in doc) ───────────────────────

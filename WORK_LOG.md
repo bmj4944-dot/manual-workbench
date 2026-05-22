@@ -109,6 +109,10 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - `document-editor.tsx` — docRef에 copy 이벤트 리스너. 빈 선택은 skip, 같은 doc 5초 throttle
   - `search-view.tsx` — 결과 클릭 시 그 문서의 search 카운트 +1 (view는 activeId 변경 → MainPane이 자동 처리)
   - 트래킹 빈도 디자인: view 5분 / copy 5초 / search throttle 없음
+- **layout streaming 폴리시 완료 (D-2 한계 해결)**: 첫 SSR에서도 loading skeleton이 보이게
+  - `app/workbench-shell.tsx` 신규: 모든 데이터 fetch를 async server component로 분리
+  - `app/layout.tsx`는 셸만 (html/body/Suspense fallback). data fetch 제거
+  - 효과: SSR 첫 요청에서 html+body+Suspense fallback이 즉시 streaming → 사용자는 빈 화면 대신 셸 스켈레톤을 봄 → Supabase fetch 완료 후 실제 UI로 swap
 - **D-2 로딩 스켈레톤 완료**: `app/loading.tsx`에 셸 골격 + shimmer
   - 280px sidebar / 1fr center / 300px right panel grid 그대로
   - `.sk-bar`, `.sk-block`, `.sk-circle` primitive + linear-gradient shimmer 애니메이션 (1.5s, OKLCH 토큰 사용)

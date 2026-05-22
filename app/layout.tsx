@@ -1,99 +1,31 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
-import { Providers, type ProviderProps } from "./providers";
-import { fetchCurrentUser } from "@/lib/data/current-user";
-import { fetchDocumentTree } from "@/lib/data/documents";
-import { fetchDocumentContent } from "@/lib/data/content";
-import { fetchCases } from "@/lib/data/cases";
-import { fetchOnboardingTasks } from "@/lib/data/onboarding";
-import { fetchTeamMembers } from "@/lib/data/members";
-import {
-  fetchComplianceRecords,
-  fetchMustReadIds,
-  fetchPageStats,
-  fetchVerifications,
-  fetchWhatsNew,
-} from "@/lib/data/insights";
-import { fetchComments } from "@/lib/data/comments";
-import { fetchHistory } from "@/lib/data/history";
-import { fetchAckedIds, fetchFavorites } from "@/lib/data/user-state";
-import { fetchAttachments } from "@/lib/data/attachments";
+import { WorkbenchShell } from "./workbench-shell";
+import Loading from "./loading";
 
 export const metadata: Metadata = {
   title: "Manual Workbench",
   description: "콜센터·CS팀을 위한 업무 매뉴얼 워크벤치",
 };
 
-export default async function RootLayout({
+/**
+ * Root layout is intentionally lightweight — just <html>/<body> + a Suspense
+ * boundary. The heavy Supabase fetch lives inside <WorkbenchShell> so that
+ * the loading skeleton (already used as page-level fallback by Next.js) can
+ * also stream during the initial SSR while data is still loading.
+ */
+export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const currentUser = await fetchCurrentUser();
-  const initial: Omit<ProviderProps, "children"> = { initialCurrentUser: currentUser };
-
-  if (currentUser) {
-    try {
-      const [
-        tree,
-        content,
-        cases,
-        onboardingTasks,
-        members,
-        pageStats,
-        verifications,
-        mustReadIds,
-        whatsNew,
-        compliance,
-        comments,
-        history,
-        favorites,
-        ackedIds,
-        attachments,
-      ] = await Promise.all([
-        fetchDocumentTree(),
-        fetchDocumentContent(),
-        fetchCases(),
-        fetchOnboardingTasks(),
-        fetchTeamMembers(),
-        fetchPageStats(),
-        fetchVerifications(),
-        fetchMustReadIds(),
-        fetchWhatsNew(),
-        fetchComplianceRecords(),
-        fetchComments(),
-        fetchHistory(),
-        fetchFavorites(),
-        fetchAckedIds(),
-        fetchAttachments(),
-      ]);
-      initial.initialTree = tree;
-      initial.initialContent = content;
-      initial.initialCases = cases;
-      initial.initialOnboardingTasks = onboardingTasks;
-      initial.initialMembers = members;
-      initial.initialPageStats = pageStats;
-      initial.initialVerifications = verifications;
-      initial.initialMustRead = new Set(mustReadIds);
-      initial.initialWhatsNew = whatsNew;
-      initial.initialCompliance = compliance;
-      initial.initialComments = comments;
-      initial.initialHistory = history;
-      initial.initialFavorites = favorites;
-      initial.initialAcked = new Set(ackedIds);
-      initial.initialAttachments = attachments;
-    } catch (error) {
-      console.error(
-        "[layout] failed to fetch workbench data from Supabase:",
-        error,
-      );
-    }
-  }
-
   return (
     <html lang="ko" suppressHydrationWarning>
       <body>
-        <Providers {...initial}>{children}</Providers>
+        <Suspense fallback={<Loading />}>
+          <WorkbenchShell>{children}</WorkbenchShell>
+        </Suspense>
       </body>
     </html>
   );

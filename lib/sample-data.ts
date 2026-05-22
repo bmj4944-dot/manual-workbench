@@ -684,6 +684,6 @@ export const SAMPLE_CONTENT: Record<string, DocContent> = {
   },
 };
 
-export function defaultBody(id: string, label: string): string {
+export function defaultBody(label: string): string {
   return `<h2>${label}</h2><p class="text-ink-3">이 항목의 본문은 아직 작성되지 않았습니다. 우측 본문 영역에서 편집을 시작하세요.</p>`;
 }

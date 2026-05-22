@@ -42,7 +42,7 @@ export function MainPane() {
 
   const node = findNode(tree, activeId);
   const content = contentMap[activeId];
-  const baseBody = content?.body ?? defaultBody(activeId, node?.label ?? "");
+  const baseBody = content?.body ?? defaultBody(node?.label ?? "");
   const body = bodyOverrides[activeId] ?? baseBody;
   const status = node?.status ?? "draft";
   const isPdf = node?.badge === "PDF";

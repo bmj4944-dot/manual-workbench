@@ -165,7 +165,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [x] ~~**C-4 페이지 통계 실시간 추적** (view/copy/search 카운트 자동 갱신)~~ (2026-05-22) — **마이그레이션 0014 적용 필요** (SQL Editor)
 - [x] ~~**C-4-debug 트래킹 silent fail 원인 추적**~~ (2026-05-22) — Vercel 빌드/브라우저 캐시 시간차였음. 충분히 기다린 후 새로고침하니 정상 동작. 진단 패치(`d26016d`)는 revert
 - [x] ~~**C-5 검증 큐 워크플로우** (재검증 시작 → last_verified_at + verified_by 갱신)~~ (2026-05-22) — **마이그레이션 0015 적용 필요**
-- [ ] **C-6 What's new 자동 유도** (document_versions에서 derive)
+- [x] ~~**C-6 What's new 자동 유도** (document_versions에서 derive)~~ (2026-05-22) — **마이그레이션 0017 적용 필요**. document_versions에 INSERT될 때마다 whats_new에도 자동 INSERT (트리거 함수). forward-only — 기존 seed whats_new와 중복 방지
 - [ ] **C-7 풀텍스트 검색** (tsvector + pg_trgm 인덱스)
 
 ### D. UX 폴리시

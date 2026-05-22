@@ -17,6 +17,7 @@ import {
 import { recordPageStatAction } from "@/lib/actions/page-stats";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { toast, toastErrorMessage } from "@/lib/toast";
+import { CollabCursors } from "./collab-cursors";
 
 // Throttle copy events per-document so a user rapidly copying multiple
 // chunks doesn't inflate the counter linearly.
@@ -1056,10 +1057,12 @@ export function DocumentEditor({
 
       <div
         className="doc-body"
+        style={{ position: "relative" }}
         onDragOver={onDragOverDoc}
         onDragLeave={onDragLeaveDoc}
         onDrop={onDropDoc}
       >
+        <CollabCursors />
         {findOpen && (
           <div className="find-bar">
             <input

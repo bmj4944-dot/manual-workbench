@@ -151,7 +151,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [x] ~~**A-5 알림 벨 팝오버 디테일** (.notif-pop 디자인 정합 확인)~~ (2026-05-22) — Tailwind 유틸 → manual2 `.notif-btn` / `.notif-pop` / `.nh` / `.nb` / `.ni` 클래스 마이그레이션. 아이콘 inline SVG화. 빈 상태 메시지 + a11y(aria-expanded, role=dialog) 추가
 - [x] ~~**A-6 verify-pill / ack-bar** 디자인 정합 (doc-head에 검증됨/만료임박/재검증 pill, ack-bar 별도 디자인)~~ (2026-05-22)
 - [x] ~~**A-7 doc-head 첨부 pill** (.attach-pill — 첨부 개수 빠른 보기)~~ (2026-05-22) — `nodeAttachments.length > 0`일 때만 표시, 클릭 시 우측 패널 첨부 섹션(`#attachments-section`)으로 smooth scroll. `.attach-pill` 스타일은 globals.css에 이미 정의되어 있어 재사용
-- [ ] **A-8 collab cursors** (시뮬레이션 원격 사용자)
+- [x] ~~**A-8 collab cursors** (시뮬레이션 원격 사용자)~~ (2026-05-22) — `CollabCursors` 컴포넌트: 본인 외 멤버 2명의 화살표 커서 + 이름 라벨이 4초마다 본문(doc-body) 위 임의 위치로 부드럽게 이동. 편집 모드에서만 노출, 읽기 모드/단일 멤버 시 숨김
 
 ### B. 에디터 추가 기능
 - [x] ~~**B-1 이미지 실제 Storage 업로드** (현재 drag-drop 시 blob URL만 — Storage에 업로드 + URL 영구)~~ (2026-05-22)

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle, Paperclip } from "lucide-react";
 import { useWorkbench, findNode } from "@/lib/workbench-context";
+import { toast, toastErrorMessage } from "@/lib/toast";
 import { defaultBody } from "@/lib/sample-data";
 import { DocumentEditor } from "@/components/editor/document-editor";
 import { WorkflowStrip } from "./workflow-strip";
@@ -191,6 +192,9 @@ export function MainPane() {
                       await attachPdf(activeId, f);
                     } catch (err) {
                       console.error("attachPdf failed", err);
+                      toast.error(
+                        toastErrorMessage(err, "PDF 첨부에 실패했습니다."),
+                      );
                     } finally {
                       setAttaching(false);
                     }

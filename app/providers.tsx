@@ -3,6 +3,7 @@
 import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
 import { WorkbenchProvider, type CurrentUser } from "@/lib/workbench-context";
+import { ToastViewport } from "@/components/shell/toast-viewport";
 import type {
   Attachment,
   Case,
@@ -46,7 +47,10 @@ export function Providers({ children, ...rest }: ProviderProps) {
       themes={["light", "dark"]}
       disableTransitionOnChange
     >
-      <WorkbenchProvider {...rest}>{children}</WorkbenchProvider>
+      <WorkbenchProvider {...rest}>
+        {children}
+        <ToastViewport />
+      </WorkbenchProvider>
     </ThemeProvider>
   );
 }

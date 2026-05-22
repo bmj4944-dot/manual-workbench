@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
+import { toast, toastErrorMessage } from "@/lib/toast";
 import type { Attachment, Case, Comment, Locale, Version } from "@/lib/types";
 
 type Tab = "outline" | "comments" | "history";
@@ -210,6 +211,7 @@ export function RightPanel() {
           await uploadAttachment(activeId, file);
         } catch (err) {
           console.error("uploadAttachment failed", err);
+          toast.error(toastErrorMessage(err, "첨부 업로드에 실패했습니다."));
         } finally {
           window.clearInterval(tick);
           setUploading((prev) => prev.filter((u) => u.id !== tempId));

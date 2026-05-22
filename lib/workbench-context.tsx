@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -34,6 +35,7 @@ import {
 } from "./actions/favorites";
 import { acknowledgeMustReadAction } from "./actions/compliance";
 import { addTagAction, removeTagAction, saveBodyAction } from "./actions/content";
+import { toast, toastErrorMessage } from "./toast";
 import { setNodeStatusAction } from "./actions/workflow";
 import { uploadPdfAction } from "./actions/pdf";
 import {
@@ -433,6 +435,7 @@ export function WorkbenchProvider({
       // 3) Server action; on failure, rollback both tree status and version.
       setNodeStatusAction(id, status).catch((err) => {
         console.error("setNodeStatusAction failed", err);
+        toast.error(toastErrorMessage(err, "상태 변경에 실패했습니다."));
         setTree((prev) =>
           mutate(prev, id, (n) => ({ ...n, status: prevStatus })),
         );
@@ -470,6 +473,7 @@ export function WorkbenchProvider({
       }));
       addCommentAction(nodeId, trimmed).catch((err) => {
         console.error("addCommentAction failed", err);
+        toast.error(toastErrorMessage(err, "댓글 등록에 실패했습니다."));
         setComments((prev) => ({
           ...prev,
           [nodeId]: (prev[nodeId] ?? []).filter((c) => c.id !== optimisticId),
@@ -493,6 +497,7 @@ export function WorkbenchProvider({
     if (commentId.startsWith("tmp-")) return;
     toggleResolveCommentAction(commentId, nextResolved).catch((err) => {
       console.error("toggleResolveCommentAction failed", err);
+      toast.error(toastErrorMessage(err, "댓글 상태 변경에 실패했습니다."));
       setComments((prev) => ({
         ...prev,
         [nodeId]: (prev[nodeId] ?? []).map((c) =>
@@ -525,12 +530,18 @@ export function WorkbenchProvider({
     [role, members],
   );
 
+  // Autosave can fail in bursts (network blip → every keystroke retries).
+  // Throttle the toast so we surface the problem without spamming.
+  const lastSaveErrorAt = useRef(0);
   const setBody = useCallback((nodeId: string, html: string) => {
     setBodyOverrides((prev) => ({ ...prev, [nodeId]: html }));
     saveBodyAction(nodeId, html).catch((err) => {
       console.error("saveBodyAction failed", err);
-      // No rollback for autosave — keep the user's text. They can retry by
-      // editing again. A toast would be nicer; defer to a UI pass.
+      const now = Date.now();
+      if (now - lastSaveErrorAt.current > 5000) {
+        lastSaveErrorAt.current = now;
+        toast.error("자동 저장에 실패했습니다. 네트워크를 확인해주세요.");
+      }
     });
   }, []);
 
@@ -543,6 +554,7 @@ export function WorkbenchProvider({
     });
     acknowledgeMustReadAction(nodeId).catch((err) => {
       console.error("acknowledgeMustReadAction failed", err);
+      toast.error(toastErrorMessage(err, "필독 확인에 실패했습니다."));
       setAcked((prev) => {
         if (!prev.has(nodeId)) return prev;
         const next = new Set(prev);
@@ -561,6 +573,14 @@ export function WorkbenchProvider({
     const action = wasFav ? removeFavoriteAction : addFavoriteAction;
     action(nodeId).catch((err) => {
       console.error("favorite action failed", err);
+      toast.error(
+        toastErrorMessage(
+          err,
+          wasFav
+            ? "즐겨찾기 해제에 실패했습니다."
+            : "즐겨찾기 추가에 실패했습니다.",
+        ),
+      );
       setFavorites((prev) =>
         wasFav ? [...prev, nodeId] : prev.filter((x) => x !== nodeId),
       );
@@ -620,6 +640,7 @@ export function WorkbenchProvider({
       const created = await uploadAttachmentAction(nodeId, fd);
       if (!created || !created.fileName) {
         console.error("uploadAttachmentAction returned invalid payload", created);
+        toast.error("첨부 업로드에 실패했습니다.");
         return;
       }
       setAttachments((prev) => ({
@@ -642,6 +663,7 @@ export function WorkbenchProvider({
         await deleteAttachmentAction(attachmentId);
       } catch (err) {
         console.error("deleteAttachmentAction failed", err);
+        toast.error(toastErrorMessage(err, "첨부 삭제에 실패했습니다."));
         setAttachments((prev) => ({ ...prev, [nodeId]: prevList }));
       }
     },
@@ -715,6 +737,7 @@ export function WorkbenchProvider({
         await renameDocumentAction(id, trimmed);
       } catch (err) {
         console.error("renameDocumentAction failed", err);
+        toast.error(toastErrorMessage(err, "이름 변경에 실패했습니다."));
         if (prevLabel !== undefined) {
           setTree((prev) =>
             mutate(prev, id, (n) => ({ ...n, label: prevLabel! })),
@@ -734,8 +757,13 @@ export function WorkbenchProvider({
       } catch (err) {
         console.error("deleteDocumentAction failed", err);
         if (removed) {
-          // Rough rollback: re-fetch on next layout — for now, alert.
-          alert("삭제에 실패했습니다. 페이지를 새로고침해주세요.");
+          // Rough rollback: re-fetch on next layout — for now, surface via toast.
+          toast.error(
+            toastErrorMessage(
+              err,
+              "삭제에 실패했습니다. 페이지를 새로고침해주세요.",
+            ),
+          );
         }
       }
     },
@@ -749,6 +777,7 @@ export function WorkbenchProvider({
         await moveDocumentAction(id, dir);
       } catch (err) {
         console.error("moveDocumentAction failed", err);
+        toast.error(toastErrorMessage(err, "순서 변경에 실패했습니다."));
         // Roll back via opposite swap
         setTree((prev) => swapSibling(prev, id, (dir === 1 ? -1 : 1) as -1 | 1));
       }
@@ -792,6 +821,7 @@ export function WorkbenchProvider({
         }
       } catch (err) {
         console.error("addTagAction failed", err);
+        toast.error(toastErrorMessage(err, "태그 추가에 실패했습니다."));
         if (prevTags !== undefined) {
           setContent((prev) => {
             const existing = prev[nodeId];
@@ -830,6 +860,7 @@ export function WorkbenchProvider({
         await removeTagAction(nodeId, target);
       } catch (err) {
         console.error("removeTagAction failed", err);
+        toast.error(toastErrorMessage(err, "태그 제거에 실패했습니다."));
         if (prevTags !== undefined) {
           setContent((prev) => {
             const existing = prev[nodeId];

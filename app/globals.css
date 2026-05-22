@@ -3216,3 +3216,77 @@ body {
 }
 .doc-head .attach-pill:hover { border-color: var(--accent-3); color: var(--accent); }
 .doc-head .attach-pill b { font-family: var(--font-en); font-weight: 600; }
+
+/* ─── Toast viewport ──────────────────────────────────────────────
+ * Stacked bottom-right. Module-singleton store in lib/toast.ts feeds
+ * a single mount in providers.tsx — no portal needed because position
+ * is fixed against the viewport. */
+.toast-viewport {
+  position: fixed;
+  bottom: 20px; right: 20px;
+  z-index: 9000;
+  display: flex; flex-direction: column; gap: 8px;
+  pointer-events: none;
+  max-width: calc(100vw - 40px);
+}
+.toast {
+  pointer-events: auto;
+  display: inline-flex; align-items: flex-start; gap: 9px;
+  min-width: 240px; max-width: 380px;
+  padding: 10px 10px 10px 12px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-md);
+  font-size: 12.5px; line-height: 1.45;
+  color: var(--ink-1);
+  animation: toast-in 180ms ease-out;
+}
+.toast .toast-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+  border-radius: 999px;
+}
+.toast .toast-msg { flex: 1; word-break: break-word; }
+.toast .toast-x {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 4px;
+  background: transparent; color: var(--ink-3);
+  border: 0; padding: 0; cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.toast .toast-x:hover { background: var(--bg-2); color: var(--ink-1); }
+
+.toast.toast-success { border-color: oklch(0.85 0.08 145); }
+.toast.toast-success .toast-icon { background: oklch(0.94 0.07 145); color: var(--ok); }
+.toast.toast-error { border-color: oklch(0.85 0.08 25); }
+.toast.toast-error .toast-icon {
+  background: oklch(0.95 0.06 25); color: oklch(0.55 0.18 25);
+}
+.toast.toast-info { border-color: oklch(0.85 0.06 240); }
+.toast.toast-info .toast-icon {
+  background: oklch(0.95 0.05 240); color: oklch(0.55 0.13 240);
+}
+
+[data-theme="dark"] .toast.toast-success .toast-icon {
+  background: oklch(0.30 0.08 145); color: oklch(0.78 0.13 145);
+}
+[data-theme="dark"] .toast.toast-error {
+  border-color: oklch(0.42 0.13 25);
+}
+[data-theme="dark"] .toast.toast-error .toast-icon {
+  background: oklch(0.30 0.10 25); color: oklch(0.78 0.16 25);
+}
+[data-theme="dark"] .toast.toast-info .toast-icon {
+  background: oklch(0.30 0.08 240); color: oklch(0.78 0.13 240);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { animation: none; }
+}

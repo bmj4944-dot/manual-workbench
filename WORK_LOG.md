@@ -71,6 +71,13 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - `lib/workbench-context.tsx` — `addTag` / `removeTag` 낙관적 업데이트 (실패 시 prev 롤백)
   - `components/shell/right-panel.tsx` — `TagsSection` 컴포넌트: `+ 추가` 클릭 → 인라인 input (Enter/콤마/blur 커밋, Esc 취소). 각 태그 칩은 viewer는 read-only, editor는 × 버튼으로 제거
   - `app/globals.css` — `.tg-removable`, `.tg-x`, `.tg-add` (dashed), `.tg-input` (focused border-accent) 스타일 추가
+- **D-1 토스트 알림 인프라 완료**: 모든 server action 실패가 사용자에게 노출됨
+  - `lib/toast.ts` — 모듈-싱글톤 store (react-hot-toast 패턴). `toast.success/error/info` API + `toastErrorMessage(err, fallback)` 헬퍼. React 외부(catch 블록)에서도 호출 가능
+  - `components/shell/toast-viewport.tsx` — 구독자 컴포넌트, 우하단 stack, 자동 dismiss + × 버튼
+  - `app/providers.tsx` — ToastViewport 마운트 (WorkbenchProvider 내부)
+  - `app/globals.css` — `.toast-viewport`, 3 variant (success/error/info), 다크모드 색상, slide-in 애니메이션, `prefers-reduced-motion` 대응
+  - `lib/workbench-context.tsx` — 모든 catch 블록(상태 변경/댓글/즐겨찾기/필독/첨부 업로드·삭제/태그/CRUD/순서변경)에 `toast.error` 호출 추가. 자동저장(`setBody`)은 5초 throttle. `alert()` 제거 → toast로 통합
+  - `components/shell/main-pane.tsx`, `right-panel.tsx` — 호출자 catch에도 토스트 추가
 
 ---
 
@@ -97,7 +104,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [ ] **C-7 풀텍스트 검색** (tsvector + pg_trgm 인덱스)
 
 ### D. UX 폴리시
-- [ ] **D-1 토스트 알림** (저장 실패, 권한 부족, 업로드 에러 등 사용자 피드백)
+- [x] ~~**D-1 토스트 알림** (저장 실패, 권한 부족, 업로드 에러 등 사용자 피드백)~~ (2026-05-22)
 - [ ] **D-2 로딩 스켈레톤** (초기 SSR 데이터 패치 동안)
 - [ ] **D-3 에러 바운더리** (예상 못 한 에러 fallback)
 - [ ] **D-4 다크 모드 디테일 정합** (지원은 되지만 미검증 영역)

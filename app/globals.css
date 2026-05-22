@@ -3368,3 +3368,84 @@ body {
   filter: brightness(1.05);
   color: #fff;
 }
+
+/* ─── Loading skeleton (app/loading.tsx) ─────────────────────────── */
+.sk-app {
+  display: grid;
+  grid-template-rows: var(--topbar-h) 1fr;
+  height: 100vh;
+  background: var(--bg);
+}
+.sk-app .sk-topbar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.sk-app .sk-main {
+  display: grid;
+  grid-template-columns: 280px 1fr 300px;
+  min-height: 0;
+}
+.sk-app .sk-sidebar {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 18px 14px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+.sk-app .sk-center {
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 12px 32px 24px;
+  min-width: 0;
+}
+.sk-app .sk-tabs { display: flex; gap: 6px; }
+.sk-app .sk-wf {
+  display: flex; gap: 32px; align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.sk-app .sk-dochead { padding-top: 4px; }
+.sk-app .sk-row { display: flex; gap: 6px; }
+.sk-app .sk-body { display: flex; flex-direction: column; gap: 8px; }
+.sk-app .sk-rpanel {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 16px 14px;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+}
+.sk-app .sk-rp-tabs {
+  display: flex; gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
+}
+
+/* Primitive skeleton boxes — share one shimmer animation */
+.sk-bar, .sk-block, .sk-circle {
+  background: linear-gradient(
+    90deg,
+    var(--bg-2) 0%,
+    var(--bg-3) 45%,
+    var(--bg-2) 90%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: sk-shimmer 1.5s linear infinite;
+  border-radius: 4px;
+}
+.sk-circle { border-radius: 999px; }
+.sk-block { width: 100%; border-radius: 8px; }
+
+@keyframes sk-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* Reduced-motion: drop the shimmer, keep a static muted background so the
+ * layout is still visible. */
+@media (prefers-reduced-motion: reduce) {
+  .sk-bar, .sk-block, .sk-circle {
+    animation: none;
+    background: var(--bg-2);
+  }
+}

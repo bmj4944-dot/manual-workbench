@@ -82,6 +82,12 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - 부수효과: multipart 안 거치니까 **한글 파일명 깨짐 자체가 사라짐** — `name` 별도 필드 트릭 불필요
   - 옛 액션 제거: `lib/actions/pdf.ts`, `lib/actions/editor-images.ts` 삭제. `attachments.ts`는 deleteAttachmentAction만 유지
   - `/api/editor-images/[...path]` 라우트는 그대로 (URL 형식 호환)
+- **D-2 로딩 스켈레톤 완료**: `app/loading.tsx`에 셸 골격 + shimmer
+  - 280px sidebar / 1fr center / 300px right panel grid 그대로
+  - `.sk-bar`, `.sk-block`, `.sk-circle` primitive + linear-gradient shimmer 애니메이션 (1.5s, OKLCH 토큰 사용)
+  - 다크모드는 토큰 변수가 자동 따라옴. `prefers-reduced-motion`이면 shimmer 끄고 정적 배경만
+  - Next.js Suspense에 자동 hook — client navigation, page-level async에서 활성화
+  - **한계**: 현재 layout.tsx가 await blocking이라 SSR 첫 페이지에선 안 보임. layout 단위 streaming(Suspense boundary 분리)은 별도 작업
 - **D-3 에러 바운더리 완료**: 예상 못 한 렌더 에러에 대한 폴백 UI
   - `app/error.tsx` — layout 안쪽 폴백: 경고 아이콘 + 메시지 + digest 배지(에러 ID) + "다시 시도"(reset) / "새로고침" 버튼. manual2 디자인 토큰(panel/line/accent) 사용
   - `app/global-error.tsx` — layout 자체가 깨질 때 폴백: 자체 `<html>/<body>` + inline 스타일 (globals.css 로드 보장 안 됨)
@@ -132,7 +138,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 
 ### D. UX 폴리시
 - [x] ~~**D-1 토스트 알림** (저장 실패, 권한 부족, 업로드 에러 등 사용자 피드백)~~ (2026-05-22)
-- [ ] **D-2 로딩 스켈레톤** (초기 SSR 데이터 패치 동안)
+- [x] ~~**D-2 로딩 스켈레톤** (초기 SSR 데이터 패치 동안)~~ (2026-05-22) — `app/loading.tsx`로 셸 골격 + shimmer. Topbar/Sidebar/DocTabs/Workflow/DocHead/Body/RightPanel 모두 매칭. 한계: 현재 layout.tsx가 await blocking이라 SSR 첫 페이지에선 안 보이고, **client nav나 page-level streaming 시점**에 활성화됨. layout 단위 streaming은 별도 작업
 - [x] ~~**D-3 에러 바운더리** (예상 못 한 에러 fallback)~~ (2026-05-22)
 - [ ] **D-4 다크 모드 디테일 정합** (지원은 되지만 미검증 영역)
 

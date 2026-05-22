@@ -99,6 +99,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 ### B. 에디터 추가 기능
 - [x] ~~**B-1 이미지 실제 Storage 업로드** (현재 drag-drop 시 blob URL만 — Storage에 업로드 + URL 영구)~~ (2026-05-22)
 - [ ] **B-2 스크립트 카드 / 결정 트리 / 임베드 편집 UI** (현재 삽입만, 콘텐츠 수정 UI 부재)
+- [ ] **B-3 4.5MB 한계 회피 — direct-to-Storage signed URL 패턴** (Vercel function payload cap. 초과 시 server action이 throw 없이 undefined 반환 → 콘솔에 `uploadAttachmentAction returned invalid payload undefined`로 노출됨. PDF/일반첨부/에디터이미지 3군데 모두 적용 필요. 임시방편으로는 클라이언트 사전 사이즈 체크 + 명확한 토스트)
 
 ### C. 데이터 / 백엔드
 - [x] ~~**C-1 태그 편집** (`+ 추가` 실제 동작 — document_content.tags array UPDATE)~~ (2026-05-22)

@@ -71,6 +71,11 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - `lib/workbench-context.tsx` — `addTag` / `removeTag` 낙관적 업데이트 (실패 시 prev 롤백)
   - `components/shell/right-panel.tsx` — `TagsSection` 컴포넌트: `+ 추가` 클릭 → 인라인 input (Enter/콤마/blur 커밋, Esc 취소). 각 태그 칩은 viewer는 read-only, editor는 × 버튼으로 제거
   - `app/globals.css` — `.tg-removable`, `.tg-x`, `.tg-add` (dashed), `.tg-input` (focused border-accent) 스타일 추가
+- **D-3 에러 바운더리 완료**: 예상 못 한 렌더 에러에 대한 폴백 UI
+  - `app/error.tsx` — layout 안쪽 폴백: 경고 아이콘 + 메시지 + digest 배지(에러 ID) + "다시 시도"(reset) / "새로고침" 버튼. manual2 디자인 토큰(panel/line/accent) 사용
+  - `app/global-error.tsx` — layout 자체가 깨질 때 폴백: 자체 `<html>/<body>` + inline 스타일 (globals.css 로드 보장 안 됨)
+  - `app/globals.css` — `.err-boundary`, `.eb-card`, `.eb-icon`(빨강), `.eb-digest`(mono), `.eb-btn.primary` 스타일 + 다크모드 대응
+  - 토스트와 분담: 토스트는 사용자 행동 피드백(server action 실패), 에러 바운더리는 렌더 도중 throw로 페이지 자체가 못 살아나는 경우
 - **E-1 Tiptap 패키지 제거 완료**: `@tiptap/*` 19개 + `tippy.js` 데드 의존성 제거
   - 코드에서는 이미 contenteditable 이행 끝, package.json만 잔류였음 (grep으로 import 0건 확인)
   - `npm install` 결과 464 → 약 200개대 패키지로 감소 (설치 시간/번들 단축)
@@ -117,7 +122,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 ### D. UX 폴리시
 - [x] ~~**D-1 토스트 알림** (저장 실패, 권한 부족, 업로드 에러 등 사용자 피드백)~~ (2026-05-22)
 - [ ] **D-2 로딩 스켈레톤** (초기 SSR 데이터 패치 동안)
-- [ ] **D-3 에러 바운더리** (예상 못 한 에러 fallback)
+- [x] ~~**D-3 에러 바운더리** (예상 못 한 에러 fallback)~~ (2026-05-22)
 - [ ] **D-4 다크 모드 디테일 정합** (지원은 되지만 미검증 영역)
 
 ### E. 정리 (Cleanup)

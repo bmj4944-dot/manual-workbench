@@ -3290,3 +3290,81 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .toast { animation: none; }
 }
+
+/* ─── Error boundary (app/error.tsx) ─────────────────────────────── */
+.err-boundary {
+  min-height: 100vh;
+  display: grid; place-items: center;
+  padding: 40px 16px;
+  background: var(--bg);
+}
+.err-boundary .eb-card {
+  max-width: 460px; width: 100%;
+  padding: 36px 32px 28px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+.err-boundary .eb-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 56px; height: 56px;
+  border-radius: 999px;
+  background: oklch(0.95 0.06 25);
+  color: oklch(0.55 0.18 25);
+  margin-bottom: 16px;
+}
+[data-theme="dark"] .err-boundary .eb-icon {
+  background: oklch(0.30 0.10 25); color: oklch(0.78 0.16 25);
+}
+.err-boundary .eb-title {
+  margin: 0 0 8px;
+  font-size: 18px; font-weight: 700;
+  color: var(--ink-1);
+}
+.err-boundary .eb-msg {
+  margin: 0 0 20px;
+  font-size: 13px; line-height: 1.55;
+  color: var(--ink-3);
+}
+.err-boundary .eb-digest {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-bottom: 20px;
+  padding: 6px 12px;
+  background: var(--bg-2);
+  border-radius: 999px;
+  font-size: 11px;
+}
+.err-boundary .eb-digest .eb-digest-label { color: var(--ink-3); }
+.err-boundary .eb-digest code {
+  font-family: var(--font-mono);
+  color: var(--ink-1);
+}
+.err-boundary .eb-actions {
+  display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;
+}
+.err-boundary .eb-btn {
+  padding: 9px 18px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink-2);
+  font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+.err-boundary .eb-btn:hover {
+  background: var(--bg-2);
+  color: var(--ink-1);
+  border-color: var(--line-2);
+}
+.err-boundary .eb-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.err-boundary .eb-btn.primary:hover {
+  filter: brightness(1.05);
+  color: #fff;
+}

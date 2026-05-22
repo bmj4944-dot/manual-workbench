@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 
 export type PageStatKind = "view" | "copy" | "search";
 
+export type PageStatResult =
+  | { ok: true }
+  | { ok: false; reason: string };
+
 /**
  * Fire-and-forget bump for the document's view/copy/search counter.
  *
@@ -14,23 +18,30 @@ export type PageStatKind = "view" | "copy" | "search";
  * - Does NOT revalidatePath: numbers refresh on the next data fetch. Hot
  *   pages would otherwise revalidate on every keystroke (search) or focus
  *   change (view), which is too aggressive for a background metric.
+ *
+ * Returns a discriminated result for *diagnostic* purposes: while we're
+ * debugging silent failures we surface non-ok results to the client via
+ * toast. Once stable this can go back to plain `void`.
  */
 export async function recordPageStatAction(
   documentId: string,
   kind: PageStatKind,
-) {
+): Promise<PageStatResult> {
   const supabase = createClient();
   const {
     data: { user },
+    error: authErr,
   } = await supabase.auth.getUser();
-  if (!user) return;
+  if (authErr) return { ok: false, reason: `auth: ${authErr.message}` };
+  if (!user) return { ok: false, reason: "no-user" };
 
   const { error } = await supabase.rpc("record_page_stat", {
     p_doc_id: documentId,
     p_kind: kind,
   });
-  // Don't throw — metric writes shouldn't surface failures to the user. A
-  // console.error is enough for the developer to spot if the RPC isn't
-  // wired up yet (migration 0014 not applied).
-  if (error) console.error("recordPageStatAction failed", error);
+  if (error) {
+    console.error("recordPageStatAction failed", error);
+    return { ok: false, reason: `${error.code ?? "rpc"}: ${error.message}` };
+  }
+  return { ok: true };
 }

@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { EMBED_KEYS, hydrateBody } from "./body-hydration";
+import { EMBED_KEYS, hydrateBody, stripWidgetControls } from "./body-hydration";
 import { TableEditorOverlay } from "./table-overlay";
 import { useWorkbench } from "@/lib/workbench-context";
 import {
@@ -360,8 +360,12 @@ export function DocumentEditor({
   }, []);
 
   // ── Editing helpers ─────────────────────────────────────────────
+  // Strip dynamically-injected widget controls (delete/duplicate hover bar)
+  // so the saved body never carries them; they get re-attached on hydrate.
   const notifyChange = useCallback(() => {
-    if (docRef.current) onUpdate?.(docRef.current.innerHTML);
+    if (docRef.current) {
+      onUpdate?.(stripWidgetControls(docRef.current.innerHTML));
+    }
   }, [onUpdate]);
 
   const exec = useCallback(

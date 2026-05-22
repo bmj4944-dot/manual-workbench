@@ -14,8 +14,78 @@ export function hydrateBody(container: HTMLElement | null): () => void {
   cleanups.push(hydrateDecisionTrees(container));
   cleanups.push(hydrateChecklists(container));
   hydrateEmbeds(container); // pure DOM mutation; no listeners to clean up
+  cleanups.push(hydrateWidgetControls(container));
 
   return () => cleanups.forEach((c) => c());
+}
+
+// Strip dynamically-injected widget controls before persisting body HTML.
+// Mutates the input string — callers should pass a clone if they need the
+// original to remain intact. Used by document-editor's notifyChange so the
+// trash/duplicate buttons don't leak into the saved body.
+export function stripWidgetControls(html: string): string {
+  if (!html.includes("widget-controls")) return html;
+  if (typeof document === "undefined") return html;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = html;
+  tmp.querySelectorAll(".widget-controls").forEach((el) => el.remove());
+  return tmp.innerHTML;
+}
+
+function hydrateWidgetControls(container: HTMLElement): () => void {
+  const widgets = Array.from(
+    container.querySelectorAll<HTMLElement>(".script-card, .decision-tree, .embed"),
+  );
+  const offs: Array<() => void> = [];
+
+  widgets.forEach((w) => {
+    // Avoid stacking controls if hydrate runs twice (e.g. after a re-render).
+    w.querySelectorAll(".widget-controls").forEach((el) => el.remove());
+
+    // Anchor the floating toolbar — position:relative on the widget so the
+    // absolute-positioned toolbar lands at the widget's own top-right.
+    if (!w.style.position) w.style.position = "relative";
+
+    const bar = document.createElement("div");
+    bar.className = "widget-controls";
+    bar.contentEditable = "false";
+    bar.innerHTML = `
+      <button type="button" data-action="duplicate" title="복제">
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><path d="M6 1.5h5.5A1.5 1.5 0 0 1 13 3v5.5"/></svg>
+      </button>
+      <button type="button" data-action="delete" title="삭제">
+        <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><line x1="3.5" y1="3.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="3.5" x2="3.5" y2="10.5"/></svg>
+      </button>
+    `;
+    w.appendChild(bar);
+
+    const onClick = (e: Event) => {
+      const t = e.target as HTMLElement;
+      const btn = t.closest<HTMLButtonElement>("button[data-action]");
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      if (action === "delete") {
+        w.remove();
+      } else if (action === "duplicate") {
+        const clone = w.cloneNode(true) as HTMLElement;
+        // Drop hydration state + injected controls so the clone re-hydrates
+        // cleanly on the next pass instead of double-stacking listeners.
+        clone.removeAttribute("data-hydrated");
+        clone.querySelectorAll(".widget-controls").forEach((el) => el.remove());
+        w.after(clone);
+      }
+      // Notify the editor's MutationObserver path — dispatching an 'input'
+      // event on the closest contenteditable triggers the normal save flow.
+      const ce = w.closest<HTMLElement>('[contenteditable="true"]') ?? w.parentElement;
+      ce?.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    bar.addEventListener("click", onClick);
+    offs.push(() => bar.removeEventListener("click", onClick));
+  });
+
+  return () => offs.forEach((o) => o());
 }
 
 // ─── Embed data (CRM ticket / product catalog) ────────────────────

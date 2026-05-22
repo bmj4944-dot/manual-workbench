@@ -3479,3 +3479,39 @@ body {
     background: var(--bg-2);
   }
 }
+
+/* ─── Widget controls (script-card / decision-tree / embed hover) ───
+ * Injected by body-hydration. Stripped from the saved body before persist.
+ * Editor-only: only visible on hover inside an editable doc-body. */
+.widget-controls {
+  position: absolute;
+  top: 6px; right: 6px;
+  display: none;
+  gap: 2px;
+  z-index: 4;
+}
+.script-card:hover > .widget-controls,
+.decision-tree:hover > .widget-controls,
+.embed:hover > .widget-controls {
+  display: inline-flex;
+}
+.widget-controls button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--ink-3);
+  cursor: pointer;
+  padding: 0;
+  transition: background 120ms, color 120ms, border-color 120ms;
+}
+.widget-controls button:hover {
+  background: var(--bg-2);
+  color: var(--ink-1);
+  border-color: var(--line-2);
+}
+.widget-controls button[data-action="delete"]:hover {
+  color: oklch(0.55 0.18 25);
+  border-color: oklch(0.55 0.18 25);
+}

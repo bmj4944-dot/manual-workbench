@@ -138,7 +138,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 
 ### E. 정리 (Cleanup)
 - [x] ~~**E-1 Tiptap 패키지 제거** (`@tiptap/*` 19개 + tippy.js)~~ (2026-05-22)
-- [ ] **E-2 `/api/diag` 라우트 제거** (디버그용이었음, 본인 정보만 노출되지만 운영엔 불필요)
+- [x] ~~**E-2 `/api/diag` 라우트 제거** (디버그용이었음, 본인 정보만 노출되지만 운영엔 불필요)~~ (2026-05-22) — 디렉터리/파일 삭제. 0008의 `debug_auth_info()` SQL 함수도 같이 제거하려면 별도 마이그레이션 필요
 - [ ] **E-3 사용 안 하는 imports/components 정리**
 - [ ] **E-4 README 갱신** (현재 phase-7 시점 내용)
 

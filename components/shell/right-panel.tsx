@@ -1041,11 +1041,15 @@ function TagsSection({
     }
   }
 
-  const commit = async () => {
+  // `keepOpen` true → Enter/comma path: clear the draft but keep the input
+  // mounted/focused for the next tag. false → blur path: also exit editor.
+  const commit = async (keepOpen: boolean) => {
     const value = draft.trim();
     if (!value) {
-      setAdding(false);
-      setDraft("");
+      if (!keepOpen) {
+        setAdding(false);
+        setDraft("");
+      }
       return;
     }
     setBusy(true);
@@ -1056,7 +1060,7 @@ function TagsSection({
         if (t) await onAdd(nodeId, t);
       }
       setDraft("");
-      setAdding(false);
+      if (!keepOpen) setAdding(false);
     } catch (err) {
       console.error("addTag failed", err);
     } finally {
@@ -1108,23 +1112,28 @@ function TagsSection({
             type="text"
             className="tg tg-input"
             value={draft}
-            disabled={busy}
+            // Intentionally not `disabled={busy}` — disabling drops focus,
+            // which kills the connecting-Enter-input flow. We block re-entry
+            // via the busy check inside onKeyDown instead.
             placeholder={
-              locale === "ko" ? "태그 (Enter로 추가)" : "Tag (Enter to add)"
+              locale === "ko"
+                ? "Enter로 추가, Esc로 종료"
+                : "Enter to add, Esc to close"
             }
             maxLength={48}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
+              if (busy) return;
               if (e.key === "Enter" || e.key === ",") {
                 e.preventDefault();
-                void commit();
+                void commit(true);
               } else if (e.key === "Escape") {
                 e.preventDefault();
                 setAdding(false);
                 setDraft("");
               }
             }}
-            onBlur={() => void commit()}
+            onBlur={() => void commit(false)}
           />
         )}
       </div>

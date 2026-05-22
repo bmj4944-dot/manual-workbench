@@ -73,13 +73,33 @@ export function MainPane() {
   // Bump page_stats.views once per document per VIEW_THROTTLE_MS in this
   // tab. Refresh resets the throttle (acceptable — bot/refresh spam is a
   // separate problem, not what this counter is for).
+  //
+  // DIAGNOSTIC (C-4-debug, 2026-05-22): two layered probes to figure out
+  // where the silent failure lives.
+  //   (1) `toast.info` on every effect fire — proves the effect runs at all.
+  //       If you don't see this toast on doc switch, the effect itself isn't
+  //       reaching client (likely a stale build / browser cache).
+  //   (2) `.then` on the server action — if (1) shows but DB doesn't bump,
+  //       the action either short-circuits (no-user) or the RPC errors. The
+  //       result is surfaced via toast so we don't need Vercel logs to see.
+  // Revert after the root cause is fixed.
   useEffect(() => {
     if (!activeId) return;
+    toast.info(`[debug] view tick: ${activeId}`);
     const now = Date.now();
     const last = lastViewedAt.get(activeId) ?? 0;
-    if (now - last < VIEW_THROTTLE_MS) return;
+    if (now - last < VIEW_THROTTLE_MS) {
+      toast.info(`[debug] throttled (5min): ${activeId}`);
+      return;
+    }
     lastViewedAt.set(activeId, now);
-    void recordPageStatAction(activeId, "view");
+    recordPageStatAction(activeId, "view")
+      .then((r) => {
+        toast.info(`[debug] action returned: ${JSON.stringify(r ?? "void")}`);
+      })
+      .catch((e) => {
+        toast.error(`[debug] action threw: ${e?.message ?? e}`);
+      });
   }, [activeId]);
 
   const onUpdate = useCallback(

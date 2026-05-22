@@ -113,7 +113,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [ ] **A-4 챗봇 위젯** (chatbot.jsx) — 우하단 플로팅, Claude API 기반 매뉴얼 Q&A
 - [ ] **A-5 알림 벨 팝오버 디테일** (.notif-pop 디자인 정합 확인)
 - [ ] **A-6 verify-pill / ack-bar** 디자인 정합 (doc-head에 검증됨/만료임박/재검증 pill, ack-bar 별도 디자인)
-- [ ] **A-7 doc-head 첨부 pill** (.attach-pill — 첨부 개수 빠른 보기)
+- [x] ~~**A-7 doc-head 첨부 pill** (.attach-pill — 첨부 개수 빠른 보기)~~ (2026-05-22) — `nodeAttachments.length > 0`일 때만 표시, 클릭 시 우측 패널 첨부 섹션(`#attachments-section`)으로 smooth scroll. `.attach-pill` 스타일은 globals.css에 이미 정의되어 있어 재사용
 - [ ] **A-8 collab cursors** (시뮬레이션 원격 사용자)
 
 ### B. 에디터 추가 기능

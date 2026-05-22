@@ -659,6 +659,7 @@ function AttachmentsSection({
 
   return (
     <div
+      id="attachments-section"
       className="meta-section"
       onDragEnter={onDragEnter}
       onDragLeave={onDragLeave}

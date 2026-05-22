@@ -153,6 +153,33 @@ export function MainPane() {
                 {tag}
               </span>
             ))}
+            {nodeAttachments.length > 0 && (
+              <button
+                type="button"
+                className="attach-pill"
+                onClick={() =>
+                  document
+                    .getElementById("attachments-section")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }
+                title={`첨부 ${nodeAttachments.length}개 — 클릭하면 첨부 섹션으로 이동`}
+                aria-label={`첨부 ${nodeAttachments.length}개`}
+              >
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 14 14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.4}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M10 6.5 5.5 11A2.5 2.5 0 0 1 2 7.5L7 2.5a1.7 1.7 0 0 1 2.4 2.4L4.5 9.8a0.9 0.9 0 0 1-1.3-1.3L7.5 4.2" />
+                </svg>
+                첨부 <b>{nodeAttachments.length}</b>
+              </button>
+            )}
             <span style={{ flex: 1 }} />
             <span style={{ color: "var(--ink-3)", fontSize: 11.5 }}>
               최근 수정:{" "}

@@ -82,6 +82,13 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - 부수효과: multipart 안 거치니까 **한글 파일명 깨짐 자체가 사라짐** — `name` 별도 필드 트릭 불필요
   - 옛 액션 제거: `lib/actions/pdf.ts`, `lib/actions/editor-images.ts` 삭제. `attachments.ts`는 deleteAttachmentAction만 유지
   - `/api/editor-images/[...path]` 라우트는 그대로 (URL 형식 호환)
+- **C-4 페이지 통계 실시간 완료**: view/copy/search 카운트 자동 갱신
+  - **마이그레이션 0014_page_stats_writes.sql**: `record_page_stat(p_doc_id, p_kind)` RPC (SECURITY DEFINER, on conflict upsert, atomic +1). authenticated에 execute 권한
+  - `lib/actions/page-stats.ts` — `recordPageStatAction(documentId, kind)` fire-and-forget. unauthenticated는 silent no-op. `revalidatePath` 안 함 (메트릭이라 다음 fetch 시 자동 반영)
+  - `main-pane.tsx` — activeId 변경 시 view 트래킹. 같은 doc 5분 throttle (module-level Map)
+  - `document-editor.tsx` — docRef에 copy 이벤트 리스너. 빈 선택은 skip, 같은 doc 5초 throttle
+  - `search-view.tsx` — 결과 클릭 시 그 문서의 search 카운트 +1 (view는 activeId 변경 → MainPane이 자동 처리)
+  - 트래킹 빈도 디자인: view 5분 / copy 5초 / search throttle 없음
 - **D-2 로딩 스켈레톤 완료**: `app/loading.tsx`에 셸 골격 + shimmer
   - 280px sidebar / 1fr center / 300px right panel grid 그대로
   - `.sk-bar`, `.sk-block`, `.sk-circle` primitive + linear-gradient shimmer 애니메이션 (1.5s, OKLCH 토큰 사용)
@@ -131,7 +138,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [x] ~~**C-1 태그 편집** (`+ 추가` 실제 동작 — document_content.tags array UPDATE)~~ (2026-05-22)
 - [ ] **C-2 댓글 답글** (스레드 구조; comments에 parent_comment_id)
 - [ ] **C-3 AI 요약 Claude API 연동** (현재 placeholder 시뮬레이션)
-- [ ] **C-4 페이지 통계 실시간 추적** (view/copy/search 카운트 자동 갱신)
+- [x] ~~**C-4 페이지 통계 실시간 추적** (view/copy/search 카운트 자동 갱신)~~ (2026-05-22) — **마이그레이션 0014 적용 필요** (SQL Editor)
 - [ ] **C-5 검증 큐 워크플로우** (재검증 시작 → last_verified_at + verified_by 갱신)
 - [ ] **C-6 What's new 자동 유도** (document_versions에서 derive)
 - [ ] **C-7 풀텍스트 검색** (tsvector + pg_trgm 인덱스)

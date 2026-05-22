@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { findPath, flatten, useWorkbench } from "@/lib/workbench-context";
+import { recordPageStatAction } from "@/lib/actions/page-stats";
 import type { DocContent, TreeNode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -99,7 +100,13 @@ export function SearchView() {
               <li key={h.node.id}>
                 <button
                   type="button"
-                  onClick={() => setActiveId(h.node.id)}
+                  onClick={() => {
+                    // Bump search counter for the document the user picked
+                    // out of the result list. View counter is bumped by
+                    // MainPane when activeId changes.
+                    void recordPageStatAction(h.node.id, "search");
+                    setActiveId(h.node.id);
+                  }}
                   className="block w-full rounded-[var(--radius-lg)] border border-line bg-panel p-4 text-left hover:border-accent hover:shadow-sm"
                 >
                   <div className="mb-1 truncate text-[11.5px] text-ink-3">

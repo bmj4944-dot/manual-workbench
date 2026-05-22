@@ -4,6 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageCircle, Paperclip } from "lucide-react";
 import { useWorkbench, findNode } from "@/lib/workbench-context";
 import { toast, toastErrorMessage } from "@/lib/toast";
+import { recordPageStatAction } from "@/lib/actions/page-stats";
+
+// Throttle "view" events per-tab. Module-level so MainPane unmount/remount
+// (caused by view switches) doesn't reset the window. Keyed by document id;
+// the value is the last bump timestamp.
+const VIEW_THROTTLE_MS = 5 * 60_000;
+const lastViewedAt = new Map<string, number>();
 import { defaultBody } from "@/lib/sample-data";
 import { DocumentEditor } from "@/components/editor/document-editor";
 import { WorkflowStrip } from "./workflow-strip";
@@ -57,6 +64,19 @@ export function MainPane() {
     setDirty(activeId, false);
     setSaveState("saved");
   }, [activeId, body, setDirty, setSaveState]);
+
+  // ── View tracking ─────────────────────────────────────────────────
+  // Bump page_stats.views once per document per VIEW_THROTTLE_MS in this
+  // tab. Refresh resets the throttle (acceptable — bot/refresh spam is a
+  // separate problem, not what this counter is for).
+  useEffect(() => {
+    if (!activeId) return;
+    const now = Date.now();
+    const last = lastViewedAt.get(activeId) ?? 0;
+    if (now - last < VIEW_THROTTLE_MS) return;
+    lastViewedAt.set(activeId, now);
+    void recordPageStatAction(activeId, "view");
+  }, [activeId]);
 
   const onUpdate = useCallback(
     (html: string) => {

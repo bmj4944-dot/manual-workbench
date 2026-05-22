@@ -14,8 +14,14 @@ import {
   createUploadSignedUrlAction,
   finalizeEditorImageAction,
 } from "@/lib/actions/uploads";
+import { recordPageStatAction } from "@/lib/actions/page-stats";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { toast, toastErrorMessage } from "@/lib/toast";
+
+// Throttle copy events per-document so a user rapidly copying multiple
+// chunks doesn't inflate the counter linearly.
+const COPY_THROTTLE_MS = 5_000;
+const lastCopiedAt = new Map<string, number>();
 import type { TeamMember } from "@/lib/types";
 
 // ─── Inline SVG icons (matches design_handoff icons.jsx) ─────────────
@@ -720,6 +726,26 @@ export function DocumentEditor({
     node.addEventListener("click", handler);
     return () => node.removeEventListener("click", handler);
   }, []);
+
+  // ── Copy tracking ──────────────────────────────────────────────
+  // Bump page_stats.copies when the user copies *something* from this doc
+  // body. Throttled per-document to avoid linear inflation when a user
+  // copies many fragments. Empty selections (Ctrl+C on nothing) skipped.
+  useEffect(() => {
+    if (!docRef.current) return;
+    const node = docRef.current;
+    const onCopy = () => {
+      const sel = window.getSelection?.();
+      if (!sel || sel.isCollapsed) return;
+      const now = Date.now();
+      const last = lastCopiedAt.get(activeId) ?? 0;
+      if (now - last < COPY_THROTTLE_MS) return;
+      lastCopiedAt.set(activeId, now);
+      void recordPageStatAction(activeId, "copy");
+    };
+    node.addEventListener("copy", onCopy);
+    return () => node.removeEventListener("copy", onCopy);
+  }, [activeId]);
 
   // ── Render ──────────────────────────────────────────────────────
   return (

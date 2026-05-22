@@ -71,6 +71,10 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - `lib/workbench-context.tsx` — `addTag` / `removeTag` 낙관적 업데이트 (실패 시 prev 롤백)
   - `components/shell/right-panel.tsx` — `TagsSection` 컴포넌트: `+ 추가` 클릭 → 인라인 input (Enter/콤마/blur 커밋, Esc 취소). 각 태그 칩은 viewer는 read-only, editor는 × 버튼으로 제거
   - `app/globals.css` — `.tg-removable`, `.tg-x`, `.tg-add` (dashed), `.tg-input` (focused border-accent) 스타일 추가
+- **E-1 Tiptap 패키지 제거 완료**: `@tiptap/*` 19개 + `tippy.js` 데드 의존성 제거
+  - 코드에서는 이미 contenteditable 이행 끝, package.json만 잔류였음 (grep으로 import 0건 확인)
+  - `npm install` 결과 464 → 약 200개대 패키지로 감소 (설치 시간/번들 단축)
+  - README 기술 스택 섹션 갱신 (Tiptap/tippy 언급 제거, contenteditable 명시)
 - **B-1 이미지 Storage 업로드 완료**: 에디터 인라인 이미지가 새로고침 후에도 유지됨
   - `lib/actions/editor-images.ts` — `uploadEditorImageAction`: `documents-attachments` 버킷 재사용, `_editor/<docId>/<uuid>.<ext>` prefix로 분리. 8MB 제한, 5종 mime 화이트리스트(png/jpeg/gif/webp/svg)
   - `app/api/editor-images/[...path]/route.ts` — 인증된 사용자만 stream. `_editor/` prefix 강제로 일반 첨부 우회 fetch 차단. 1시간 immutable 캐시
@@ -117,7 +121,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [ ] **D-4 다크 모드 디테일 정합** (지원은 되지만 미검증 영역)
 
 ### E. 정리 (Cleanup)
-- [ ] **E-1 Tiptap 패키지 제거** (`@tiptap/*` 11개 package.json 의존성)
+- [x] ~~**E-1 Tiptap 패키지 제거** (`@tiptap/*` 19개 + tippy.js)~~ (2026-05-22)
 - [ ] **E-2 `/api/diag` 라우트 제거** (디버그용이었음, 본인 정보만 노출되지만 운영엔 불필요)
 - [ ] **E-3 사용 안 하는 imports/components 정리**
 - [ ] **E-4 README 갱신** (현재 phase-7 시점 내용)

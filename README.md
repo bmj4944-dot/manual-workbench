@@ -20,8 +20,8 @@ npm run dev
 
 - Next.js 14 (App Router) · TypeScript · Tailwind 3.4
 - next-themes (light/dark, `data-theme` 속성)
-- Tiptap 3.23 (StarterKit + Underline + Link + Image + Table + TextStyle + Color + Highlight + TextAlign + Placeholder + TaskList + Mention + 자체 SearchReplace)
-- tippy.js (Mention suggestion 팝오버)
+- Supabase (Postgres + Auth + Storage) — 14개 테이블 + RLS
+- 에디터: contenteditable + execCommand (자체 구현, manual2 디자인과 1:1 매칭). 멘션 팝오버·표 편집·찾기바꾸기·콜아웃·스크립트카드·결정트리 모두 자체 컴포넌트
 - pdfjs-dist 5.7 (PDF 인라인 렌더, CDN worker)
 - lucide-react (아이콘)
 - Pretendard / Inter / JetBrains Mono (CDN)
@@ -54,14 +54,15 @@ npm run dev
 
 ```
 app/
-├── app/                # Next.js App Router (layout, providers, page, globals)
+├── app/                # Next.js App Router (layout, providers, page, globals, api routes)
 ├── components/
-│   ├── editor/         # Tiptap 통합 + 툴바 + 찾기/바꾸기 + 멘션
+│   ├── editor/         # contenteditable 에디터 + 툴바 + 표 + 찾기/바꾸기 + 멘션 + 위젯
 │   ├── pdf/            # pdfjs-dist 기반 인라인 뷰어
-│   ├── shell/          # Topbar / Sidebar / DocTabs / MainPane / RightPanel / 팔레트 등
+│   ├── shell/          # Topbar / Sidebar / DocTabs / MainPane / RightPanel / 팔레트 / 토스트 등
 │   ├── toc/            # TOC 트리
 │   └── views/          # 대시보드 / 사례 / 온보딩
-└── lib/                # 타입, i18n, 샘플 데이터, 워크벤치 컨텍스트, utils
+├── lib/                # types · i18n · 워크벤치 컨텍스트 · toast · supabase 클라이언트 · server actions · data fetchers
+└── supabase/           # SQL 마이그레이션 (0001~0013) — SQL Editor에서 수동 적용
 ```
 
 ## 빌드·린트

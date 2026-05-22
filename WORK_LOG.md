@@ -166,7 +166,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [x] ~~**E-1 Tiptap 패키지 제거** (`@tiptap/*` 19개 + tippy.js)~~ (2026-05-22)
 - [x] ~~**E-2 `/api/diag` 라우트 제거** (디버그용이었음, 본인 정보만 노출되지만 운영엔 불필요)~~ (2026-05-22) — 디렉터리/파일 삭제. 0008의 `debug_auth_info()` SQL 함수도 같이 제거하려면 별도 마이그레이션 필요
 - [x] ~~**E-3 사용 안 하는 imports/components 정리**~~ (2026-05-22) — TS `noUnusedLocals` 패스 통과: `defaultBody(id, label)`의 unused `id` 인자 제거 (호출자도 같이 갱신). 그 외 TS/ESLint 모두 clean
-- [ ] **E-4 README 갱신** (현재 phase-7 시점 내용)
+- [x] ~~**E-4 README 갱신** (현재 phase-7 시점 내용)~~ (2026-05-22) — 전면 재작성: env 안내, 마이그레이션 0001~0015 요약, signed URL 패턴, 검증 워크플로우, UX 폴리시 시리즈, 디렉토리 트리 등
 
 ---
 

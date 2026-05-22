@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
+import { askClaudeAction } from "@/lib/actions/ai";
 import { toast, toastErrorMessage } from "@/lib/toast";
 import type { Attachment, Case, Comment, Locale, Version } from "@/lib/types";
 
@@ -412,6 +413,7 @@ export function RightPanel() {
 
 // ─── AI Summary (matches assist.jsx — 3 states) ────────────────────
 function AISummary({ nodeId }: { nodeId: string }) {
+  const { content: contentMap } = useWorkbench();
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">(
     "idle",
   );
@@ -432,13 +434,36 @@ function AISummary({ nodeId }: { nodeId: string }) {
   const generate = async () => {
     setState("loading");
     setError("");
-    // Placeholder: no Claude API on this side yet; show a simulated result.
-    setTimeout(() => {
-      setSummary(
-        "이 문서는 핵심 원칙과 절차를 정리한 가이드입니다. 실무에서 자주 발생하는 상황을 기준으로 권장 응대 방식과 피해야 할 표현을 명시했습니다. 워크플로우 단계에 따라 활용해주세요.",
-      );
+    // Strip HTML so the model sees clean text. Cap at ~10k chars so we
+    // stay well inside the model's context for a quick summary call.
+    const raw = contentMap[nodeId]?.body ?? "";
+    const text = raw
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 10000);
+    if (!text) {
+      setError("요약할 본문이 없습니다.");
+      setState("error");
+      return;
+    }
+    const r = await askClaudeAction({
+      system:
+        "당신은 콜센터·CS팀 업무 매뉴얼을 빠르게 요약하는 도우미입니다. 한국어로 3~4문장으로 핵심만 정리하세요. 단정적이고 실무적인 톤으로.",
+      messages: [
+        {
+          role: "user",
+          content: `다음 매뉴얼 본문을 요약해주세요.\n\n${text}`,
+        },
+      ],
+    });
+    if (r.ok) {
+      setSummary(r.text);
       setState("done");
-    }, 1200);
+    } else {
+      setError(r.reason);
+      setState("error");
+    }
   };
 
   return (

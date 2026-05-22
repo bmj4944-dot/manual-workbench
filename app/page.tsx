@@ -9,6 +9,7 @@ import { RightPanel } from "@/components/shell/right-panel";
 import { CommandPalette } from "@/components/shell/command-palette";
 import { SearchView } from "@/components/shell/search-view";
 import { KeyboardShortcuts } from "@/components/shell/keyboard-shortcuts";
+import { ChatbotWidget } from "@/components/shell/chatbot";
 import { DashboardView } from "@/components/views/dashboard-view";
 import { CasesView } from "@/components/views/cases-view";
 import { FaqView } from "@/components/views/faq-view";
@@ -36,6 +37,7 @@ export default function Home() {
       </div>
       <CommandPalette />
       <KeyboardShortcuts />
+      {view === "doc" && <ChatbotWidget />}
     </div>
   );
 }

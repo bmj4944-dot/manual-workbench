@@ -147,7 +147,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 ## 📋 해야 할 작업
 
 ### A. UI 디자인 격차 마무리 (manual2와 1:1)
-- [ ] **A-4 챗봇 위젯** (chatbot.jsx) — 우하단 플로팅, Claude API 기반 매뉴얼 Q&A
+- [x] ~~**A-4 챗봇 위젯** (chatbot.jsx) — 우하단 플로팅, Claude API 기반 매뉴얼 Q&A~~ (2026-05-22) — ⚠️ `ANTHROPIC_API_KEY` 환경 변수 필요
 - [x] ~~**A-5 알림 벨 팝오버 디테일** (.notif-pop 디자인 정합 확인)~~ (2026-05-22) — Tailwind 유틸 → manual2 `.notif-btn` / `.notif-pop` / `.nh` / `.nb` / `.ni` 클래스 마이그레이션. 아이콘 inline SVG화. 빈 상태 메시지 + a11y(aria-expanded, role=dialog) 추가
 - [x] ~~**A-6 verify-pill / ack-bar** 디자인 정합 (doc-head에 검증됨/만료임박/재검증 pill, ack-bar 별도 디자인)~~ (2026-05-22)
 - [x] ~~**A-7 doc-head 첨부 pill** (.attach-pill — 첨부 개수 빠른 보기)~~ (2026-05-22) — `nodeAttachments.length > 0`일 때만 표시, 클릭 시 우측 패널 첨부 섹션(`#attachments-section`)으로 smooth scroll. `.attach-pill` 스타일은 globals.css에 이미 정의되어 있어 재사용
@@ -162,7 +162,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 ### C. 데이터 / 백엔드
 - [x] ~~**C-1 태그 편집** (`+ 추가` 실제 동작 — document_content.tags array UPDATE)~~ (2026-05-22)
 - [x] ~~**C-2 댓글 답글** (스레드 구조; comments에 parent_comment_id)~~ (2026-05-22) — **마이그레이션 0016 적용 필요**
-- [ ] **C-3 AI 요약 Claude API 연동** (현재 placeholder 시뮬레이션)
+- [x] ~~**C-3 AI 요약 Claude API 연동** (현재 placeholder 시뮬레이션)~~ (2026-05-22) — `askClaudeAction` 공용 함수로 wire (A-4와 같은 함수). 본문 HTML strip 후 10k자 cap, 모델 `claude-haiku-4-5-20251001`
 - [x] ~~**C-4 페이지 통계 실시간 추적** (view/copy/search 카운트 자동 갱신)~~ (2026-05-22) — **마이그레이션 0014 적용 필요** (SQL Editor)
 - [x] ~~**C-4-debug 트래킹 silent fail 원인 추적**~~ (2026-05-22) — Vercel 빌드/브라우저 캐시 시간차였음. 충분히 기다린 후 새로고침하니 정상 동작. 진단 패치(`d26016d`)는 revert
 - [x] ~~**C-5 검증 큐 워크플로우** (재검증 시작 → last_verified_at + verified_by 갱신)~~ (2026-05-22) — **마이그레이션 0015 적용 필요**

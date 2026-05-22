@@ -156,7 +156,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 ### B. 에디터 추가 기능
 - [x] ~~**B-1 이미지 실제 Storage 업로드** (현재 drag-drop 시 blob URL만 — Storage에 업로드 + URL 영구)~~ (2026-05-22)
 - [x] ~~**B-2 스크립트 카드 / 결정 트리 / 임베드 편집 UI** (현재 삽입만, 콘텐츠 수정 UI 부재)~~ (2026-05-22, 1단계) — 위젯 hover 시 우상단에 삭제 / 복제 floating control. hydrate 시 inject + `stripWidgetControls`로 저장 전 strip → DB에 toolbar 영구화 안 됨. 변수 추가/분기 추가 같은 깊은 편집은 별도 todo
-- [ ] **B-2b 깊은 위젯 편집**: 스크립트 카드 변수 추가/제거, 결정 트리 분기 추가/제거, 임베드 source 교체 UI
+- [x] ~~**B-2b 깊은 위젯 편집**: 스크립트 카드 변수 추가/제거, 결정 트리 분기 추가/제거, 임베드 source 교체 UI~~ (2026-05-22) — 위젯 hover toolbar에 type별 편집 버튼. prompt() 기반 (모달은 추후): 스크립트=`+변수`, 결정트리=JSON 편집, 임베드=등록된 키 중 swap. 변수 제거는 별도 (현재는 변수 추가만)
 - [x] ~~**B-3 4.5MB 한계 회피 — direct-to-Storage signed URL 패턴**~~ (2026-05-22)
 
 ### C. 데이터 / 백엔드

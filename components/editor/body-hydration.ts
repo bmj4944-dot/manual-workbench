@@ -38,6 +38,11 @@ function hydrateWidgetControls(container: HTMLElement): () => void {
   );
   const offs: Array<() => void> = [];
 
+  const PEN = `<svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12.5 L2.5 9.5 L9 3 L11 5 L4.5 11.5 Z"/><line x1="8.5" y1="3.5" x2="10.5" y2="5.5"/></svg>`;
+  const PLUS = `<svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="7" y1="3" x2="7" y2="11"/><line x1="3" y1="7" x2="11" y2="7"/></svg>`;
+  const COPY = `<svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><path d="M6 1.5h5.5A1.5 1.5 0 0 1 13 3v5.5"/></svg>`;
+  const X = `<svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><line x1="3.5" y1="3.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="3.5" x2="3.5" y2="10.5"/></svg>`;
+
   widgets.forEach((w) => {
     // Avoid stacking controls if hydrate runs twice (e.g. after a re-render).
     w.querySelectorAll(".widget-controls").forEach((el) => el.remove());
@@ -46,16 +51,25 @@ function hydrateWidgetControls(container: HTMLElement): () => void {
     // absolute-positioned toolbar lands at the widget's own top-right.
     if (!w.style.position) w.style.position = "relative";
 
+    // Per-widget edit buttons. Heavy editing UIs (modal forms) would be
+    // nicer but are out of scope for this pass — prompt() is enough to
+    // unlock the data without rewriting the widget structure.
+    let typeButtons = "";
+    if (w.classList.contains("script-card")) {
+      typeButtons = `<button type="button" data-action="add-var" title="변수 추가">${PLUS}</button>`;
+    } else if (w.classList.contains("decision-tree")) {
+      typeButtons = `<button type="button" data-action="edit-tree" title="분기 JSON 편집">${PEN}</button>`;
+    } else if (w.classList.contains("embed")) {
+      typeButtons = `<button type="button" data-action="swap-embed" title="소스 교체">${PEN}</button>`;
+    }
+
     const bar = document.createElement("div");
     bar.className = "widget-controls";
     bar.contentEditable = "false";
     bar.innerHTML = `
-      <button type="button" data-action="duplicate" title="복제">
-        <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="8" height="8" rx="1.5"/><path d="M6 1.5h5.5A1.5 1.5 0 0 1 13 3v5.5"/></svg>
-      </button>
-      <button type="button" data-action="delete" title="삭제">
-        <svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><line x1="3.5" y1="3.5" x2="10.5" y2="10.5"/><line x1="10.5" y1="3.5" x2="3.5" y2="10.5"/></svg>
-      </button>
+      ${typeButtons}
+      <button type="button" data-action="duplicate" title="복제">${COPY}</button>
+      <button type="button" data-action="delete" title="삭제">${X}</button>
     `;
     w.appendChild(bar);
 
@@ -66,16 +80,22 @@ function hydrateWidgetControls(container: HTMLElement): () => void {
       e.preventDefault();
       e.stopPropagation();
       const action = btn.dataset.action;
+
       if (action === "delete") {
         w.remove();
       } else if (action === "duplicate") {
         const clone = w.cloneNode(true) as HTMLElement;
-        // Drop hydration state + injected controls so the clone re-hydrates
-        // cleanly on the next pass instead of double-stacking listeners.
         clone.removeAttribute("data-hydrated");
         clone.querySelectorAll(".widget-controls").forEach((el) => el.remove());
         w.after(clone);
+      } else if (action === "add-var") {
+        addScriptVar(w);
+      } else if (action === "edit-tree") {
+        editDecisionTree(w);
+      } else if (action === "swap-embed") {
+        swapEmbed(w);
       }
+
       // Notify the editor's MutationObserver path — dispatching an 'input'
       // event on the closest contenteditable triggers the normal save flow.
       const ce = w.closest<HTMLElement>('[contenteditable="true"]') ?? w.parentElement;
@@ -86,6 +106,104 @@ function hydrateWidgetControls(container: HTMLElement): () => void {
   });
 
   return () => offs.forEach((o) => o());
+}
+
+// ─── Per-widget editors ────────────────────────────────────────────
+// prompt()-based for now — quick way to expose the underlying data without
+// the modal infrastructure. Each handler mutates the widget DOM in place,
+// then strips data-hydrated so the next hydrate pass re-attaches listeners.
+
+function addScriptVar(card: HTMLElement) {
+  const name = window.prompt("새 변수 이름 (예: 주문번호)")?.trim();
+  if (!name) return;
+  // De-dup against existing variable inputs to keep the var registry clean.
+  if (card.querySelector(`[data-var-input="${cssEscape(name)}"]`)) {
+    window.alert(`이미 "${name}" 변수가 있습니다.`);
+    return;
+  }
+
+  // Append the new variable input row in the .sc-vars footer.
+  const vars = card.querySelector<HTMLElement>(".sc-vars");
+  if (vars) {
+    const vk = document.createElement("span");
+    vk.className = "vk";
+    vk.innerHTML = `${escapeHtml(name)} <input type="text" data-var-input="${escapeAttr(
+      name,
+    )}" placeholder="" />`;
+    vars.appendChild(vk);
+  }
+
+  // Drop a slot at the end of .sc-body so hydration can wire {var} → input.
+  const body = card.querySelector<HTMLElement>(".sc-body");
+  if (body) {
+    body.insertAdjacentHTML(
+      "beforeend",
+      ` <span class="var-slot" data-var="${escapeAttr(name)}">{${escapeHtml(
+        name,
+      )}}</span>`,
+    );
+  }
+
+  card.removeAttribute("data-hydrated");
+}
+
+function editDecisionTree(dt: HTMLElement) {
+  const current = dt.dataset.tree ?? "{}";
+  let pretty: string;
+  try {
+    pretty = JSON.stringify(JSON.parse(current), null, 2);
+  } catch {
+    pretty = current;
+  }
+  const next = window.prompt(
+    "결정 트리 JSON (예: {\"q\":\"질문?\",\"y\":{\"r\":\"예 결과\",\"good\":true},\"n\":{\"r\":\"아니오 결과\"}})",
+    pretty,
+  );
+  if (next == null) return;
+  try {
+    JSON.parse(next); // validate
+  } catch (e) {
+    window.alert(
+      `JSON이 올바르지 않습니다: ${e instanceof Error ? e.message : String(e)}`,
+    );
+    return;
+  }
+  dt.dataset.tree = next;
+  dt.removeAttribute("data-hydrated");
+  // Reset visible state so the user immediately sees the new question.
+  const q = dt.querySelector<HTMLElement>(".dt-question");
+  const path = dt.querySelector<HTMLElement>(".dt-path");
+  if (q) q.textContent = "";
+  if (path) path.innerHTML = "";
+}
+
+function swapEmbed(el: HTMLElement) {
+  const keys = Object.keys(EMBED_DATA);
+  const current = el.dataset.embed ?? "";
+  const next = window.prompt(
+    `사용 가능한 소스:\n  - ${keys.join("\n  - ")}\n\n새 소스 키`,
+    current,
+  );
+  if (next == null) return;
+  const trimmed = next.trim();
+  if (!trimmed) return;
+  if (!(trimmed in EMBED_DATA)) {
+    window.alert(`"${trimmed}" 소스가 없습니다. 등록된 키 중에서 선택해주세요.`);
+    return;
+  }
+  el.dataset.embed = trimmed;
+  // Wipe rendered body so hydrateEmbeds repaints it on the next pass.
+  el.removeAttribute("data-hydrated");
+  el.innerHTML = "";
+}
+
+function escapeAttr(s: string): string {
+  return s.replace(/"/g, "&quot;");
+}
+
+function cssEscape(s: string): string {
+  // Minimal — variable names won't contain CSS escape edge cases in practice.
+  return s.replace(/(["\\])/g, "\\$1");
 }
 
 // ─── Embed data (CRM ticket / product catalog) ────────────────────

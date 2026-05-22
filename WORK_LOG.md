@@ -168,7 +168,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [x] ~~**C-5 검증 큐 워크플로우** (재검증 시작 → last_verified_at + verified_by 갱신)~~ (2026-05-22) — **마이그레이션 0015 적용 필요**
 - [x] ~~**C-6 What's new 자동 유도** (document_versions에서 derive)~~ (2026-05-22) — **마이그레이션 0017 적용 필요**. document_versions에 INSERT될 때마다 whats_new에도 자동 INSERT (트리거 함수). forward-only — 기존 seed whats_new와 중복 방지
 - [x] ~~**C-7 풀텍스트 검색** (tsvector + pg_trgm 인덱스)~~ (2026-05-22) — **마이그레이션 0018 적용 필요**. pg_trgm 확장 + GIN 인덱스 (documents.label/label_en, document_content.body) + `search_documents(q)` RPC (제목/본문 매칭, similarity 정렬, 본문은 HTML strip 후 snippet). 클라이언트 UI는 아직 RPC 사용 안 함 — 별도 todo
-- [ ] **C-7b search-view를 RPC로 전환**: 현재 client-side 검색 → `search_documents(q)` RPC 호출 + debounce + snippet 표시
+- [x] ~~**C-7b search-view를 RPC로 전환**~~ (2026-05-22) — `searchDocumentsAction` server action + search-view 250ms debounce + 라이브 검색(입력마다 push) + 로딩 상태 + RPC snippet 사용. client-side `search()` 헬퍼 제거
 
 ### D. UX 폴리시
 - [x] ~~**D-1 토스트 알림** (저장 실패, 권한 부족, 업로드 에러 등 사용자 피드백)~~ (2026-05-22)

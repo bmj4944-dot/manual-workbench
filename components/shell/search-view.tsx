@@ -1,37 +1,55 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { findPath, flatten, useWorkbench } from "@/lib/workbench-context";
+import { findPath, useWorkbench } from "@/lib/workbench-context";
 import { recordPageStatAction } from "@/lib/actions/page-stats";
-import type { DocContent, TreeNode } from "@/lib/types";
+import {
+  searchDocumentsAction,
+  type SearchHit,
+} from "@/lib/actions/search";
 import { cn } from "@/lib/utils";
 
 type Filter = "all" | "chapter" | "section" | "item";
-type Hit = {
-  node: TreeNode;
-  matchedIn: "title" | "body";
-  snippet?: string;
-};
 
+/**
+ * Full-text search powered by the `search_documents(q)` RPC (C-7 infra +
+ * C-7b wiring). Debounces user input by 250ms so we don't spam the server
+ * on every keystroke; result list filters client-side by node type.
+ */
 export function SearchView() {
-  const {
-    tree,
-    searchQuery,
-    setSearchQuery,
-    setActiveId,
-    locale,
-    content,
-  } = useWorkbench();
+  const { tree, searchQuery, setSearchQuery, setActiveId, locale } =
+    useWorkbench();
   const [filter, setFilter] = useState<Filter>("all");
   const [draft, setDraft] = useState(searchQuery);
+  const [hits, setHits] = useState<SearchHit[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const hits = useMemo(
-    () => search(tree, searchQuery, content),
-    [tree, searchQuery, content],
-  );
+  // Debounce: query the server 250ms after the user stops typing (or hits
+  // Enter, which sets searchQuery immediately and triggers the same effect).
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setHits([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const id = window.setTimeout(async () => {
+      const result = await searchDocumentsAction(q);
+      setHits(result);
+      setLoading(false);
+    }, 250);
+    return () => window.clearTimeout(id);
+  }, [searchQuery]);
+
+  // Keep the draft in sync when searchQuery changes from outside (palette).
+  useEffect(() => {
+    setDraft(searchQuery);
+  }, [searchQuery]);
+
   const visible = useMemo(
-    () => (filter === "all" ? hits : hits.filter((h) => h.node.type === filter)),
+    () => (filter === "all" ? hits : hits.filter((h) => h.type === filter)),
     [hits, filter],
   );
 
@@ -55,7 +73,11 @@ export function SearchView() {
           <input
             autoFocus
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              // Live-search: push to global query so debounce kicks in.
+              setSearchQuery(e.target.value);
+            }}
             placeholder="장·절·내용 검색..."
             className="flex-1 border-0 bg-transparent text-[15px] text-ink outline-none placeholder:text-ink-4"
           />
@@ -69,7 +91,11 @@ export function SearchView() {
 
         <div className="mb-3 flex items-center gap-2">
           <span className="text-[12.5px] text-ink-3">
-            {searchQuery ? `"${searchQuery}" — ${hits.length}건` : "검색어를 입력하세요"}
+            {searchQuery
+              ? loading
+                ? `"${searchQuery}" — 검색 중...`
+                : `"${searchQuery}" — ${hits.length}건`
+              : "검색어를 입력하세요"}
           </span>
           <span className="flex-1" />
           {(["all", "chapter", "section", "item"] as Filter[]).map((f) => (
@@ -91,21 +117,21 @@ export function SearchView() {
 
         <ul className="flex flex-col gap-2.5">
           {visible.map((h) => {
-            const path = findPath(tree, h.node.id);
+            const path = findPath(tree, h.id);
             const crumb = path.slice(0, -1).map((p) =>
               locale === "ko" ? p.label : p.labelEn ?? p.label,
             );
-            const title = locale === "ko" ? h.node.label : h.node.labelEn ?? h.node.label;
+            const title = locale === "ko" ? h.label : h.labelEn ?? h.label;
             return (
-              <li key={h.node.id}>
+              <li key={h.id}>
                 <button
                   type="button"
                   onClick={() => {
                     // Bump search counter for the document the user picked
                     // out of the result list. View counter is bumped by
                     // MainPane when activeId changes.
-                    void recordPageStatAction(h.node.id, "search");
-                    setActiveId(h.node.id);
+                    void recordPageStatAction(h.id, "search");
+                    setActiveId(h.id);
                   }}
                   className="block w-full rounded-[var(--radius-lg)] border border-line bg-panel p-4 text-left hover:border-accent hover:shadow-sm"
                 >
@@ -122,20 +148,15 @@ export function SearchView() {
                   )}
                   <div className="mt-2 flex items-center gap-2 text-[11px] text-ink-3">
                     <span className="rounded-full border border-line bg-surface-2 px-1.5 py-px">
-                      {LABEL[h.node.type as Filter]}
+                      {LABEL[h.type as Filter]}
                     </span>
                     <span>일치: {h.matchedIn === "title" ? "제목" : "본문"}</span>
-                    {h.node.badge === "PDF" && (
-                      <span className="rounded bg-accent-softer px-1 font-en font-bold text-accent">
-                        PDF
-                      </span>
-                    )}
                   </div>
                 </button>
               </li>
             );
           })}
-          {visible.length === 0 && searchQuery && (
+          {!loading && visible.length === 0 && searchQuery && (
             <li className="rounded-[var(--radius-lg)] border border-dashed border-line bg-surface-2 p-8 text-center text-[13px] text-ink-3">
               일치하는 결과가 없습니다.
             </li>
@@ -175,42 +196,4 @@ function Hl({ text, q }: { text: string; q: string }) {
   }
   parts.push(text.slice(cursor));
   return <>{parts}</>;
-}
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function search(
-  tree: TreeNode[],
-  q: string,
-  contentMap: Record<string, DocContent>,
-): Hit[] {
-  const lq = q.trim().toLowerCase();
-  if (!lq) return [];
-  const hits: Hit[] = [];
-  for (const n of flatten(tree)) {
-    const titles = [n.label, n.labelEn ?? ""].join(" ").toLowerCase();
-    if (titles.includes(lq)) {
-      hits.push({ node: n, matchedIn: "title" });
-      continue;
-    }
-    const content = contentMap[n.id];
-    if (content) {
-      const text = stripHtml(content.body);
-      const idx = text.toLowerCase().indexOf(lq);
-      if (idx !== -1) {
-        const start = Math.max(0, idx - 40);
-        const end = Math.min(text.length, idx + q.length + 80);
-        const snippet =
-          (start > 0 ? "… " : "") + text.slice(start, end) + (end < text.length ? " …" : "");
-        hits.push({ node: n, matchedIn: "body", snippet });
-      }
-    }
-  }
-  return hits;
 }

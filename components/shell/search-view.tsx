@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { findPath, flatten, useWorkbench } from "@/lib/workbench-context";
 import { recordPageStatAction } from "@/lib/actions/page-stats";
-import { toast } from "@/lib/toast";
 import type { DocContent, TreeNode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -105,10 +104,7 @@ export function SearchView() {
                     // Bump search counter for the document the user picked
                     // out of the result list. View counter is bumped by
                     // MainPane when activeId changes.
-                    // DIAGNOSTIC: see TODO in main-pane view tracking.
-                    recordPageStatAction(h.node.id, "search").then((r) => {
-                      if (!r.ok) toast.error(`[debug] search: ${r.reason}`);
-                    });
+                    void recordPageStatAction(h.node.id, "search");
                     setActiveId(h.node.id);
                   }}
                   className="block w-full rounded-[var(--radius-lg)] border border-line bg-panel p-4 text-left hover:border-accent hover:shadow-sm"

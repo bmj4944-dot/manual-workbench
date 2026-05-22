@@ -741,10 +741,7 @@ export function DocumentEditor({
       const last = lastCopiedAt.get(activeId) ?? 0;
       if (now - last < COPY_THROTTLE_MS) return;
       lastCopiedAt.set(activeId, now);
-      // DIAGNOSTIC: see TODO in main-pane view tracking.
-      recordPageStatAction(activeId, "copy").then((r) => {
-        if (!r.ok) toast.error(`[debug] copy: ${r.reason}`);
-      });
+      void recordPageStatAction(activeId, "copy");
     };
     node.addEventListener("copy", onCopy);
     return () => node.removeEventListener("copy", onCopy);

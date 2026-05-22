@@ -139,6 +139,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [ ] **C-2 댓글 답글** (스레드 구조; comments에 parent_comment_id)
 - [ ] **C-3 AI 요약 Claude API 연동** (현재 placeholder 시뮬레이션)
 - [x] ~~**C-4 페이지 통계 실시간 추적** (view/copy/search 카운트 자동 갱신)~~ (2026-05-22) — **마이그레이션 0014 적용 필요** (SQL Editor)
+- [ ] **C-4-debug 트래킹 silent fail 원인 추적**: 마이그레이션은 적용되어 SQL Editor에서 `record_page_stat(...)` 직접 호출은 정상(카운트 +1)인데, 프로덕션 클라에서 자동 트래킹은 카운트가 안 올라감. 콘솔 에러도 없고 useEffect→server action 호출 사이 어딘가에서 silent. 진단 패치(`6dcc9a3`) 시 토스트도 안 떴음 → useEffect 자체가 발동 안 하거나 fire-and-forget이 막힘. 다음 시도: server action 진입 시 `console.log` + Vercel function logs 또는 main-pane mount 자체에 진단 토스트
 - [ ] **C-5 검증 큐 워크플로우** (재검증 시작 → last_verified_at + verified_by 갱신)
 - [ ] **C-6 What's new 자동 유도** (document_versions에서 derive)
 - [ ] **C-7 풀텍스트 검색** (tsvector + pg_trgm 인덱스)

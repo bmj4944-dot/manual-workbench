@@ -75,12 +75,7 @@ export function MainPane() {
     const last = lastViewedAt.get(activeId) ?? 0;
     if (now - last < VIEW_THROTTLE_MS) return;
     lastViewedAt.set(activeId, now);
-    // DIAGNOSTIC: surface failures via toast while we debug silent fails.
-    // TODO(C-4-debug): revert to `void recordPageStatAction(...)` once we
-    // know what's blocking the counter in production.
-    recordPageStatAction(activeId, "view").then((r) => {
-      if (!r.ok) toast.error(`[debug] view: ${r.reason}`);
-    });
+    void recordPageStatAction(activeId, "view");
   }, [activeId]);
 
   const onUpdate = useCallback(

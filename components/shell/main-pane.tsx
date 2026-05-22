@@ -311,7 +311,7 @@ export function MainPane() {
         bottomSlot={
           <>
             {vState === "stale" && verification && (
-              <VerifyBar verification={verification} />
+              <VerifyBar nodeId={activeId} verification={verification} />
             )}
             <MustReadBar nodeId={activeId} />
             <FeedbackBar />
@@ -324,15 +324,32 @@ export function MainPane() {
 
 // ─── VerifyBar ──────────────────────────────────────────────────────
 // Shown below the doc body when the document's verification interval has
-// elapsed. Re-verification itself (clicking the button) belongs to the
-// verify queue workflow (see C-5 todo) — for now the button is a no-op
-// shell that signals intent.
+// elapsed. Clicking 재검증 시작 calls the C-5 server action; the button
+// is disabled for users without the 'review' role.
 function VerifyBar({
+  nodeId,
   verification,
 }: {
+  nodeId: string;
   verification: { lastVerified: number; intervalDays: number; by: string };
 }) {
+  const { reverifyDocument, can } = useWorkbench();
+  const [busy, setBusy] = useState(false);
+  const canReview = can("review");
   const over = Math.max(0, verification.lastVerified - verification.intervalDays);
+
+  const onClick = async () => {
+    if (!canReview || busy) return;
+    setBusy(true);
+    try {
+      await reverifyDocument(nodeId);
+    } catch {
+      /* toast handled in context */
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="verify-bar" role="alert">
       <div className="ic" aria-hidden="true">
@@ -364,12 +381,11 @@ function VerifyBar({
       </div>
       <button
         type="button"
-        title="검증 큐 워크플로우는 곧 추가됩니다 (C-5)"
-        onClick={() => {
-          toast.info("재검증 워크플로우는 곧 추가됩니다.");
-        }}
+        onClick={onClick}
+        disabled={!canReview || busy}
+        title={canReview ? "재검증 완료 처리" : "reviewer/admin 권한이 필요합니다"}
       >
-        재검증 시작
+        {busy ? "처리 중..." : "재검증 시작"}
       </button>
     </div>
   );

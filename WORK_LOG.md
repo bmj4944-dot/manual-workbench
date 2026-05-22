@@ -82,6 +82,12 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - 부수효과: multipart 안 거치니까 **한글 파일명 깨짐 자체가 사라짐** — `name` 별도 필드 트릭 불필요
   - 옛 액션 제거: `lib/actions/pdf.ts`, `lib/actions/editor-images.ts` 삭제. `attachments.ts`는 deleteAttachmentAction만 유지
   - `/api/editor-images/[...path]` 라우트는 그대로 (URL 형식 호환)
+- **C-5 검증 큐 워크플로우 완료**: 재검증 버튼이 실제 동작
+  - **마이그레이션 0015_verifications_writes.sql**: authenticated UPDATE/INSERT 정책. role 게이팅은 Server Action에서 (다른 액션과 동일 패턴)
+  - `lib/actions/verifications.ts` — `reverifyDocumentAction`: 기존 행 있으면 `last_verified_at + verified_by`만 갱신(interval_days 보존), 없으면 default 90일로 INSERT. requires `review` 권한 (reviewer/admin)
+  - `lib/workbench-context.tsx` — `reverifyDocument` 메서드. 낙관적 update (lastVerified=0 + 본인 이름) + 실패 시 prev 롤백 + 성공 토스트
+  - main-pane VerifyBar 재검증 버튼: 실제 호출 + busy 상태 + 권한 없으면 disabled
+  - dashboard "검증 대기열" 탭 "검증 시작" 버튼: 같은 액션 wiring + per-row pending 상태
 - **A-6 verify-pill / ack-bar 완료**: 검증 상태/필독 ack 디자인 정합
   - `lib/utils.ts` — `verifyState(v)` + `verifyLabel(state, v)` 공유 (이전엔 dashboard-view 안에 inline. fresh/aging/stale 분기 기준은 일관 유지)
   - `main-pane.tsx` — tag-row에 `.verify-pill` (fresh/aging/stale) + bottomSlot에 stale 상태에서만 `.verify-bar` (재검증 안내). 재검증 버튼은 C-5에서 본격 처리 예정 (현재는 토스트로 안내)
@@ -146,7 +152,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [ ] **C-3 AI 요약 Claude API 연동** (현재 placeholder 시뮬레이션)
 - [x] ~~**C-4 페이지 통계 실시간 추적** (view/copy/search 카운트 자동 갱신)~~ (2026-05-22) — **마이그레이션 0014 적용 필요** (SQL Editor)
 - [ ] **C-4-debug 트래킹 silent fail 원인 추적**: 마이그레이션은 적용되어 SQL Editor에서 `record_page_stat(...)` 직접 호출은 정상(카운트 +1)인데, 프로덕션 클라에서 자동 트래킹은 카운트가 안 올라감. 콘솔 에러도 없고 useEffect→server action 호출 사이 어딘가에서 silent. 진단 패치(`6dcc9a3`) 시 토스트도 안 떴음 → useEffect 자체가 발동 안 하거나 fire-and-forget이 막힘. 다음 시도: server action 진입 시 `console.log` + Vercel function logs 또는 main-pane mount 자체에 진단 토스트
-- [ ] **C-5 검증 큐 워크플로우** (재검증 시작 → last_verified_at + verified_by 갱신)
+- [x] ~~**C-5 검증 큐 워크플로우** (재검증 시작 → last_verified_at + verified_by 갱신)~~ (2026-05-22) — **마이그레이션 0015 적용 필요**
 - [ ] **C-6 What's new 자동 유도** (document_versions에서 derive)
 - [ ] **C-7 풀텍스트 검색** (tsvector + pg_trgm 인덱스)
 

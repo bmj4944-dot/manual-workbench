@@ -44,6 +44,7 @@ import {
 } from "./actions/uploads";
 import { deleteAttachmentAction } from "./actions/attachments";
 import { createClient as createBrowserSupabase } from "./supabase/client";
+import { reverifyDocumentAction } from "./actions/verifications";
 import {
   addSiblingAction,
   createDocumentAction,
@@ -141,6 +142,7 @@ type WorkbenchState = {
   completeStep: (taskId: string) => void;
   recordQuizAnswer: (taskId: string, q: number, opt: number) => void;
   attachPdf: (nodeId: string, file: File) => Promise<void>;
+  reverifyDocument: (nodeId: string) => Promise<void>;
   addTag: (nodeId: string, tag: string) => Promise<void>;
   removeTag: (nodeId: string, tag: string) => Promise<void>;
   uploadAttachment: (nodeId: string, file: File) => Promise<void>;
@@ -274,9 +276,9 @@ export function WorkbenchProvider({
   const [pageStats] = useState<Record<string, PageStats>>(
     initialPageStats ?? PAGE_STATS,
   );
-  const [verifications] = useState<Record<string, Verification>>(
-    initialVerifications ?? VERIFICATION,
-  );
+  const [verifications, setVerifications] = useState<
+    Record<string, Verification>
+  >(initialVerifications ?? VERIFICATION);
   const [mustRead] = useState<ReadonlySet<string>>(
     initialMustRead ?? MUST_READ_IDS,
   );
@@ -801,6 +803,57 @@ export function WorkbenchProvider({
     [],
   );
 
+  // ── Re-verification (C-5) ────────────────────────────────────────
+  // Optimistically reset lastVerified to 0 and switch the verifier name to
+  // the current user; rollback on failure. Requires 'review' role server-
+  // side (reviewer/admin); we also check client-side so the toast lands
+  // before a server round-trip when the user simply can't.
+  const reverifyDocument = useCallback(
+    async (nodeId: string) => {
+      if (!ROLE_PERMISSIONS[role].includes("review")) {
+        throw new Error("검증 권한이 없습니다 (reviewer/admin).");
+      }
+      const me = currentUser ?? members.find((m) => m.role === role) ?? members[0];
+      const prev = verifications[nodeId];
+      // Optimistic snapshot. If no row existed yet we still show "방금"-equiv
+      // (lastVerified=0); the real interval is decided server-side.
+      const intervalDays = prev?.intervalDays ?? 90;
+      setVerifications((s) => ({
+        ...s,
+        [nodeId]: {
+          lastVerified: 0,
+          intervalDays,
+          by: me?.name ?? prev?.by ?? "—",
+        },
+      }));
+      try {
+        const result = await reverifyDocumentAction(nodeId);
+        setVerifications((s) => ({
+          ...s,
+          [nodeId]: {
+            lastVerified: 0,
+            intervalDays: result.intervalDays,
+            by: result.by,
+          },
+        }));
+        toast.success("재검증이 완료되었습니다.");
+      } catch (err) {
+        console.error("reverifyDocumentAction failed", err);
+        toast.error(toastErrorMessage(err, "재검증에 실패했습니다."));
+        setVerifications((s) => {
+          if (!prev) {
+            const next = { ...s };
+            delete next[nodeId];
+            return next;
+          }
+          return { ...s, [nodeId]: prev };
+        });
+        throw err;
+      }
+    },
+    [role, members, currentUser, verifications],
+  );
+
   // ── Tags ─────────────────────────────────────────────────────────
   // Optimistic add/remove against `content[nodeId].tags`. On failure we
   // rollback to the previous list. Duplicate/empty are filtered locally so
@@ -1000,6 +1053,7 @@ export function WorkbenchProvider({
       completeStep,
       recordQuizAnswer,
       attachPdf,
+      reverifyDocument,
       addTag,
       removeTag,
       uploadAttachment,
@@ -1062,6 +1116,7 @@ export function WorkbenchProvider({
       completeStep,
       recordQuizAnswer,
       attachPdf,
+      reverifyDocument,
       addTag,
       removeTag,
       uploadAttachment,

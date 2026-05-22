@@ -373,7 +373,19 @@ function RankRow({
 }
 
 function VerifyPane() {
-  const { tree, verifications } = useWorkbench();
+  const { tree, verifications, reverifyDocument, can } = useWorkbench();
+  const canReview = can("review");
+  const [pending, setPending] = useState<string | null>(null);
+  const onReverify = async (id: string) => {
+    setPending(id);
+    try {
+      await reverifyDocument(id);
+    } catch {
+      /* toast handled in context */
+    } finally {
+      setPending(null);
+    }
+  };
   const entries = Object.entries(verifications).map(([id, v]) => {
     const ratio = v.lastVerified / v.intervalDays;
     return { id, v, ratio, state: verifyState(v) };
@@ -443,13 +455,22 @@ function VerifyPane() {
                   <StatePill state={e.state} />
                   <button
                     type="button"
-                    disabled={e.state === "fresh"}
+                    disabled={
+                      e.state === "fresh" || !canReview || pending === e.id
+                    }
+                    onClick={() => onReverify(e.id)}
+                    title={
+                      !canReview
+                        ? "reviewer/admin 권한이 필요합니다"
+                        : "재검증 완료 처리"
+                    }
                     className={cn(
                       "rounded-md border border-line bg-surface-2 px-2.5 py-1 text-[11.5px] text-ink-2 hover:bg-surface-3",
-                      e.state === "fresh" && "cursor-not-allowed opacity-50",
+                      (e.state === "fresh" || !canReview) &&
+                        "cursor-not-allowed opacity-50",
                     )}
                   >
-                    검증 시작
+                    {pending === e.id ? "처리 중..." : "검증 시작"}
                   </button>
                 </li>
               );

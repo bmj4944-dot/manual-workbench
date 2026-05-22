@@ -168,7 +168,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [x] ~~**D-1 토스트 알림** (저장 실패, 권한 부족, 업로드 에러 등 사용자 피드백)~~ (2026-05-22)
 - [x] ~~**D-2 로딩 스켈레톤** (초기 SSR 데이터 패치 동안)~~ (2026-05-22) — `app/loading.tsx`로 셸 골격 + shimmer. Topbar/Sidebar/DocTabs/Workflow/DocHead/Body/RightPanel 모두 매칭. 한계: 현재 layout.tsx가 await blocking이라 SSR 첫 페이지에선 안 보이고, **client nav나 page-level streaming 시점**에 활성화됨. layout 단위 streaming은 별도 작업
 - [x] ~~**D-3 에러 바운더리** (예상 못 한 에러 fallback)~~ (2026-05-22)
-- [ ] **D-4 다크 모드 디테일 정합** (지원은 되지만 미검증 영역)
+- [x] ~~**D-4 다크 모드 디테일 정합** (지원은 되지만 미검증 영역)~~ (2026-05-22) — 콜아웃 6종 다 dark override (이전 3종만 있었음). 새 컴포넌트(toast/err-boundary/sk/ack-bar/verify-bar/notif-pop)는 이미 dark 토큰 사용. 남은 가시성 낮은 영역(faq tag, script-card vars, mention popover hover 등)은 시각 검증 후 별도 폴리시
 
 ### E. 정리 (Cleanup)
 - [x] ~~**E-1 Tiptap 패키지 제거** (`@tiptap/*` 19개 + tippy.js)~~ (2026-05-22)

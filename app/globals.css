@@ -516,10 +516,16 @@ body {
 }
 .doc .callout.info { border-color: oklch(0.55 0.13 240); background: oklch(0.97 0.02 240); }
 [data-theme="dark"] .doc .callout.info { background: oklch(0.25 0.04 240); }
+.doc .callout.success { border-color: var(--ok); background: oklch(0.97 0.03 145); }
+[data-theme="dark"] .doc .callout.success { background: oklch(0.26 0.05 145); }
 .doc .callout.warn { border-color: var(--warn); background: oklch(0.97 0.03 75); }
 [data-theme="dark"] .doc .callout.warn { background: oklch(0.28 0.05 75); }
+.doc .callout.danger { border-color: oklch(0.55 0.18 25); background: oklch(0.96 0.05 25); }
+[data-theme="dark"] .doc .callout.danger { background: oklch(0.28 0.08 25); }
 .doc .callout.tip { border-color: var(--ok); background: oklch(0.97 0.02 145); }
 [data-theme="dark"] .doc .callout.tip { background: oklch(0.26 0.04 145); }
+.doc .callout.example { border-color: oklch(0.55 0.10 280); background: oklch(0.97 0.03 280); }
+[data-theme="dark"] .doc .callout.example { background: oklch(0.27 0.05 280); }
 .doc .callout .ico { font-size: 16px; flex-shrink: 0; padding-top: 2px; }
 .doc .callout .body { flex: 1; }
 .doc .callout .body p:first-child { margin-top: 0; font-weight: 600; }

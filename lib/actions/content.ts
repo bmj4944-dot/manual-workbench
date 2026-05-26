@@ -1,7 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermission, requireProfile } from "./_helpers";
+import {
+  actionFail as fail,
+  requirePermission,
+  requireProfile,
+} from "./_helpers";
+
+export type AddTagResult =
+  | { ok: true; tags: string[] | null }
+  | { ok: false; reason: string };
 
 /**
  * Saves the body for a document (autosave path). UPSERTs into
@@ -57,16 +65,19 @@ async function readCurrentTags(documentId: string): Promise<{
  * after case-insensitive compare) and writes back the normalized form. UPSERTs
  * so docs without a content row yet still get one. Requires 'edit'.
  */
-export async function addTagAction(documentId: string, raw: string) {
+export async function addTagAction(
+  documentId: string,
+  raw: string,
+): Promise<AddTagResult> {
   const tag = normalizeTag(raw);
-  if (!tag) return { tags: null as string[] | null };
+  if (!tag) return { ok: true, tags: null };
 
   const { supabase, profileId, current } = await readCurrentTags(documentId);
   if (current.some((t) => t.toLowerCase() === tag.toLowerCase())) {
-    return { tags: current };
+    return { ok: true, tags: current };
   }
   if (current.length >= MAX_TAGS) {
-    throw new Error(`태그는 최대 ${MAX_TAGS}개까지 추가할 수 있습니다.`);
+    return fail(`태그는 최대 ${MAX_TAGS}개까지 추가할 수 있습니다.`);
   }
   const next = [...current, tag];
 
@@ -78,7 +89,7 @@ export async function addTagAction(documentId: string, raw: string) {
     );
   if (error) throw error;
   revalidatePath("/");
-  return { tags: next };
+  return { ok: true, tags: next };
 }
 
 /**

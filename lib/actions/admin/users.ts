@@ -2,23 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/server";
-import { requireAdmin, requireProfile } from "../_helpers";
+import {
+  actionFail as fail,
+  type ActionResult,
+  requireAdmin,
+  requireProfile,
+} from "../_helpers";
 import type { Role } from "@/lib/types";
 
 const ROLE_VALUES: Role[] = ["admin", "reviewer", "editor", "viewer"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-/**
- * Next.js 14 production 빌드에서는 server action 이 throw 하면 친절한 메시지가
- * 클라이언트로 전달되지 않고 generic "Server Components render" 에러로 바뀐다.
- * 사용자 검증 같은 예측 가능한 실패는 result 객체로 반환해 toast 에서
- * 그대로 보여줄 수 있게 한다. 진짜 예외(DB 장애 등) 만 throw.
- */
-export type ActionResult = { ok: true } | { ok: false; reason: string };
-
-function fail(reason: string): ActionResult {
-  return { ok: false, reason };
-}
+export type { ActionResult };
 
 /**
  * 다른 멤버의 역할을 변경한다. admin 전용. 가드:
@@ -130,9 +124,9 @@ export async function inviteUserAction(
     return fail("초대 응답에서 사용자 ID 를 받지 못했습니다.");
   }
 
-  // handle_new_user 트리거가 profiles 행을 만든다. 즉시 역할 덮어쓰기는
-  // 트리거 완료를 기다리는 대신 short-poll 로 처리.
-  if (initialRole && initialRole !== "editor") {
+  // handle_new_user 트리거가 profiles 행을 만든다 (default role = viewer).
+  // initialRole 이 viewer 가 아니면 short-poll 로 즉시 덮어쓰기.
+  if (initialRole && initialRole !== "viewer") {
     for (let i = 0; i < 5; i++) {
       const { data: prof, error: pErr } = await admin
         .from("profiles")

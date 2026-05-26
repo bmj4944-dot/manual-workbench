@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermission, requireProfile } from "./_helpers";
+import {
+  actionFail as fail,
+  type ActionResult,
+  requirePermission,
+  requireProfile,
+} from "./_helpers";
 import type { NodeStatus } from "@/lib/types";
 
 const STATUS_TO_PERMISSION: Record<NodeStatus, string> = {
@@ -26,13 +31,13 @@ const STATUS_LABEL_KO: Record<NodeStatus, string> = {
 export async function rejectDocumentAction(
   documentId: string,
   reason: string,
-) {
+): Promise<ActionResult> {
   const { supabase, profileId, role } = await requireProfile();
   requirePermission(role, "review");
 
   const trimmed = reason.trim();
-  if (!trimmed) throw new Error("거부 사유를 입력하세요.");
-  if (trimmed.length > 500) throw new Error("거부 사유는 500자 이내여야 합니다.");
+  if (!trimmed) return fail("거부 사유를 입력하세요.");
+  if (trimmed.length > 500) return fail("거부 사유는 500자 이내여야 합니다.");
 
   const { data: cur } = await supabase
     .from("documents")
@@ -41,7 +46,7 @@ export async function rejectDocumentAction(
     .maybeSingle();
   const currentStatus = (cur as { status?: NodeStatus | null } | null)?.status;
   if (currentStatus !== "review") {
-    throw new Error("검토중인 문서만 거부할 수 있습니다.");
+    return fail("검토중인 문서만 거부할 수 있습니다.");
   }
 
   const { error: updErr } = await supabase
@@ -59,6 +64,7 @@ export async function rejectDocumentAction(
   if (cmtErr) throw cmtErr;
 
   revalidatePath("/");
+  return { ok: true };
 }
 
 /**

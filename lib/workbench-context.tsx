@@ -495,11 +495,7 @@ export function WorkbenchProvider({
         }));
       }
 
-      try {
-        await rejectDocumentAction(id, trimmed);
-      } catch (err) {
-        console.error("rejectDocumentAction failed", err);
-        toast.error(toastErrorMessage(err, "거부 처리에 실패했습니다."));
+      const rollback = () => {
         setTree((prev) =>
           mutate(prev, id, (n) => ({ ...n, status: prevStatus })),
         );
@@ -507,6 +503,17 @@ export function WorkbenchProvider({
           ...prev,
           [id]: (prev[id] ?? []).filter((c) => c.id !== optimisticId),
         }));
+      };
+      try {
+        const res = await rejectDocumentAction(id, trimmed);
+        if (!res.ok) {
+          toast.error(res.reason);
+          rollback();
+        }
+      } catch (err) {
+        console.error("rejectDocumentAction failed", err);
+        toast.error(toastErrorMessage(err, "거부 처리에 실패했습니다."));
+        rollback();
       }
     },
     [role, members, currentUser],
@@ -944,18 +951,7 @@ export function WorkbenchProvider({
         };
         return { ...prev, [nodeId]: { ...base, tags: [...list, tag] } };
       });
-      try {
-        const { tags } = await addTagAction(nodeId, tag);
-        if (tags) {
-          setContent((prev) => {
-            const existing = prev[nodeId];
-            if (!existing) return prev;
-            return { ...prev, [nodeId]: { ...existing, tags } };
-          });
-        }
-      } catch (err) {
-        console.error("addTagAction failed", err);
-        toast.error(toastErrorMessage(err, "태그 추가에 실패했습니다."));
+      const rollbackTags = () => {
         if (prevTags !== undefined) {
           setContent((prev) => {
             const existing = prev[nodeId];
@@ -963,6 +959,25 @@ export function WorkbenchProvider({
             return { ...prev, [nodeId]: { ...existing, tags: prevTags! } };
           });
         }
+      };
+      try {
+        const res = await addTagAction(nodeId, tag);
+        if (!res.ok) {
+          toast.error(res.reason);
+          rollbackTags();
+          return;
+        }
+        if (res.tags) {
+          setContent((prev) => {
+            const existing = prev[nodeId];
+            if (!existing) return prev;
+            return { ...prev, [nodeId]: { ...existing, tags: res.tags! } };
+          });
+        }
+      } catch (err) {
+        console.error("addTagAction failed", err);
+        toast.error(toastErrorMessage(err, "태그 추가에 실패했습니다."));
+        rollbackTags();
         throw err;
       }
     },

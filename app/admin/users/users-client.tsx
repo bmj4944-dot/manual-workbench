@@ -302,7 +302,7 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
 
 function InviteModal({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<Role>("editor");
+  const [role, setRole] = useState<Role>("viewer");
   const [pending, startTransition] = useTransition();
 
   const submit = () => {

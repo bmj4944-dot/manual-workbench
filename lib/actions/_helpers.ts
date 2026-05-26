@@ -55,3 +55,17 @@ export function requireAdmin(role: Role) {
     throw new Error("관리자 권한이 필요합니다.");
   }
 }
+
+/**
+ * Server action 표준 결과 타입. Next.js 14 production 빌드는 throw 메시지를
+ * 클라이언트에 전달하지 않으므로(보안), 사용자 검증 같은 예측 가능한 실패는
+ * 이 타입으로 반환해 toast 에서 그대로 노출한다. DB 장애 같은 unexpected
+ * 만 throw 한다.
+ */
+export type ActionResult<T = undefined> =
+  | (T extends undefined ? { ok: true } : { ok: true; data: T })
+  | { ok: false; reason: string };
+
+export function actionFail(reason: string): { ok: false; reason: string } {
+  return { ok: false, reason };
+}

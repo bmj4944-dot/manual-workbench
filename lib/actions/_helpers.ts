@@ -23,13 +23,18 @@ export async function requireProfile() {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, role")
+    .select("id, role, is_active")
     .eq("auth_user_id", user.id)
     .maybeSingle();
   if (error) throw error;
   if (!profile) throw new Error("profile not found for current user");
 
-  const row = profile as { id: string; role: Role };
+  const row = profile as { id: string; role: Role; is_active: boolean | null };
+  // 비활성 계정은 모든 server action 차단 — 강제 로그아웃 + 비활성화 후
+  // 토큰 만료 전 grace period 에 액션 시도하는 케이스 방어
+  if (row.is_active === false) {
+    throw new Error("비활성화된 계정입니다. 관리자에게 문의하세요.");
+  }
   return {
     supabase,
     user,

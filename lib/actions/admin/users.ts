@@ -150,3 +150,89 @@ export async function inviteUserAction(
   revalidatePath("/admin/users");
   return { ok: true };
 }
+
+/**
+ * 사용자 계정을 비활성화/활성화한다. admin 전용.
+ *   - 비활성화 시: is_active=false, disabled_at=now(), disabled_by=self
+ *   - 활성화 시: is_active=true, disabled_at=null, disabled_by=null
+ * 가드: 자기 자신 비활성화 차단, 마지막 활성 admin 비활성화 차단.
+ */
+export async function setUserActiveAction(
+  targetProfileId: string,
+  active: boolean,
+): Promise<ActionResult> {
+  const { supabase, profileId: selfId, role: selfRole } = await requireProfile();
+  requireAdmin(selfRole);
+
+  if (!active && targetProfileId === selfId) {
+    return fail("본인 계정은 비활성화할 수 없습니다.");
+  }
+
+  if (!active) {
+    const { data: target, error: tErr } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", targetProfileId)
+      .maybeSingle();
+    if (tErr) throw tErr;
+    const targetRole = (target as { role?: Role } | null)?.role;
+    if (targetRole === "admin") {
+      const { count, error: cErr } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "admin")
+        .eq("is_active", true);
+      if (cErr) throw cErr;
+      if ((count ?? 0) <= 1) {
+        return fail("마지막 활성 관리자는 비활성화할 수 없습니다.");
+      }
+    }
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update(
+      active
+        ? { is_active: true, disabled_at: null, disabled_by: null }
+        : { is_active: false, disabled_at: new Date().toISOString(), disabled_by: selfId },
+    )
+    .eq("id", targetProfileId);
+  if (error) throw error;
+
+  revalidatePath("/admin/users");
+  return { ok: true };
+}
+
+/**
+ * 특정 사용자의 현재 supabase 세션을 모두 무효화한다 (강제 로그아웃).
+ * admin 전용. 본인 자신에게는 호출 차단 (우상단 메뉴 로그아웃 사용 안내).
+ */
+export async function forceSignOutAction(
+  targetProfileId: string,
+): Promise<ActionResult> {
+  const { supabase, profileId: selfId, role: selfRole } = await requireProfile();
+  requireAdmin(selfRole);
+
+  if (targetProfileId === selfId) {
+    return fail("본인 세션은 우상단 메뉴의 로그아웃으로 종료해주세요.");
+  }
+
+  const { data: target, error: tErr } = await supabase
+    .from("profiles")
+    .select("auth_user_id")
+    .eq("id", targetProfileId)
+    .maybeSingle();
+  if (tErr) throw tErr;
+  const authUserId = (target as { auth_user_id?: string | null } | null)?.auth_user_id;
+  if (!authUserId) return fail("대상 사용자의 인증 정보를 찾을 수 없습니다.");
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.signOut(authUserId, "global");
+  if (error) {
+    console.error("[forceSignOutAction] signOut failed:", error);
+    return fail(`강제 로그아웃 실패: ${error.message}`);
+  }
+
+  revalidatePath("/admin/users");
+  return { ok: true };
+}

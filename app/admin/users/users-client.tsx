@@ -2,7 +2,9 @@
 
 import { useMemo, useState, useTransition } from "react";
 import {
+  forceSignOutAction,
   inviteUserAction,
+  setUserActiveAction,
   setUserRoleAction,
 } from "@/lib/actions/admin/users";
 import { ROLE_LABELS } from "@/lib/sample-data";
@@ -137,7 +139,7 @@ export function UsersClient({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(180px, 1.4fr) minmax(180px, 1.6fr) 140px 130px 130px",
+            gridTemplateColumns: "minmax(180px, 1.3fr) minmax(180px, 1.4fr) 130px 110px 110px 160px",
             gap: 12,
             padding: "10px 16px",
             borderBottom: "1px solid var(--line)",
@@ -154,6 +156,7 @@ export function UsersClient({
           <div>역할</div>
           <div>가입일</div>
           <div>마지막 로그인</div>
+          <div>관리</div>
         </div>
 
         {filtered.length === 0 ? (
@@ -220,17 +223,51 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
     });
   };
 
+  const onToggleActive = () => {
+    startTransition(async () => {
+      try {
+        const res = await setUserActiveAction(user.profileId, !user.isActive);
+        if (res.ok) {
+          toast.success(user.isActive ? `${user.name} 비활성화됨` : `${user.name} 활성화됨`);
+        } else {
+          toast.error(res.reason);
+        }
+      } catch (err) {
+        console.error("setUserActiveAction failed", err);
+        toast.error(toastErrorMessage(err, "상태 변경에 실패했습니다."));
+      }
+    });
+  };
+
+  const onForceSignOut = () => {
+    if (!window.confirm(`${user.name}의 모든 세션을 강제 로그아웃 합니까?`)) return;
+    startTransition(async () => {
+      try {
+        const res = await forceSignOutAction(user.profileId);
+        if (res.ok) {
+          toast.success(`${user.name} 세션을 종료했습니다.`);
+        } else {
+          toast.error(res.reason);
+        }
+      } catch (err) {
+        console.error("forceSignOutAction failed", err);
+        toast.error(toastErrorMessage(err, "강제 로그아웃에 실패했습니다."));
+      }
+    });
+  };
+
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "minmax(180px, 1.4fr) minmax(180px, 1.6fr) 140px 130px 130px",
+        gridTemplateColumns: "minmax(180px, 1.3fr) minmax(180px, 1.4fr) 130px 110px 110px 160px",
         gap: 12,
         padding: "12px 16px",
         borderBottom: "1px solid var(--line)",
         alignItems: "center",
         fontSize: 13,
-        opacity: pending ? 0.6 : 1,
+        opacity: pending ? 0.5 : user.isActive ? 1 : 0.55,
+        background: user.isActive ? "transparent" : "var(--surface-2)",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -261,6 +298,20 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
             }}
           >
             나
+          </span>
+        )}
+        {!user.isActive && (
+          <span
+            style={{
+              fontSize: 10,
+              padding: "1px 6px",
+              borderRadius: 4,
+              background: "rgba(192, 57, 43, 0.15)",
+              color: "#c0392b",
+            }}
+            title={user.disabledAt ? `비활성 ${formatRelative(user.disabledAt)}` : "비활성"}
+          >
+            비활성
           </span>
         )}
       </div>
@@ -295,6 +346,44 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
       </div>
       <div style={{ color: "var(--ink-3)", fontSize: 12 }}>
         {formatRelative(user.lastSignInAt)}
+      </div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <button
+          type="button"
+          onClick={onToggleActive}
+          disabled={pending || isSelf}
+          title={isSelf ? "본인은 비활성화 불가" : user.isActive ? "비활성화" : "활성화"}
+          style={{
+            padding: "4px 8px",
+            borderRadius: 6,
+            border: `1px solid ${user.isActive ? "var(--line)" : "#c0392b"}`,
+            background: "transparent",
+            color: user.isActive ? "var(--ink-2)" : "#c0392b",
+            fontSize: 11.5,
+            cursor: pending || isSelf ? "not-allowed" : "pointer",
+            opacity: isSelf ? 0.4 : 1,
+          }}
+        >
+          {user.isActive ? "비활성" : "활성"}
+        </button>
+        <button
+          type="button"
+          onClick={onForceSignOut}
+          disabled={pending || isSelf}
+          title={isSelf ? "본인은 메뉴에서 로그아웃" : "강제 로그아웃"}
+          style={{
+            padding: "4px 8px",
+            borderRadius: 6,
+            border: "1px solid var(--line)",
+            background: "transparent",
+            color: "var(--ink-2)",
+            fontSize: 11.5,
+            cursor: pending || isSelf ? "not-allowed" : "pointer",
+            opacity: isSelf ? 0.4 : 1,
+          }}
+        >
+          로그아웃
+        </button>
       </div>
     </div>
   );

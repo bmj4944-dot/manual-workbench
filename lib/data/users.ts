@@ -12,6 +12,8 @@ export type AdminUserRow = {
   email: string | null;
   createdAt: string;
   lastSignInAt: string | null;
+  isActive: boolean;
+  disabledAt: string | null;
 };
 
 type ProfileRow = {
@@ -22,6 +24,8 @@ type ProfileRow = {
   color: string;
   role: Role;
   created_at: string;
+  is_active: boolean | null;
+  disabled_at: string | null;
 };
 
 type AuthUserRow = {
@@ -39,7 +43,7 @@ export async function fetchAllUsers(): Promise<AdminUserRow[]> {
 
   const profilesRes = await admin
     .from("profiles")
-    .select("id, auth_user_id, name, initials, color, role, created_at")
+    .select("id, auth_user_id, name, initials, color, role, created_at, is_active, disabled_at")
     .order("created_at", { ascending: true });
   if (profilesRes.error) throw profilesRes.error;
   const profiles = (profilesRes.data ?? []) as unknown as ProfileRow[];
@@ -69,6 +73,8 @@ export async function fetchAllUsers(): Promise<AdminUserRow[]> {
       email: auth?.email ?? null,
       createdAt: p.created_at,
       lastSignInAt: auth?.last_sign_in_at ?? null,
+      isActive: p.is_active !== false,
+      disabledAt: p.disabled_at,
     };
   });
 }

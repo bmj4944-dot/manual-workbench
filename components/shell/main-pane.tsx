@@ -248,7 +248,7 @@ export function MainPane() {
         bottomSlot={
           <>
             <MustReadBar nodeId={activeId} />
-            <FeedbackBar />
+            <FeedbackBar nodeId={activeId} />
           </>
         }
       />

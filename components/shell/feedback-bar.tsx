@@ -1,21 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { submitFeedbackAction } from "@/lib/actions/feedback";
 
 type Vote = "up" | "down" | null;
+type State = "idle" | "submitting" | "submitted" | "error";
 
-export function FeedbackBar() {
+export function FeedbackBar({ nodeId }: { nodeId: string }) {
   const [vote, setVote] = useState<Vote>(null);
   const [note, setNote] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [state, setState] = useState<State>("idle");
 
-  if (submitted) {
+  // 문서가 바뀌면 폼 리셋
+  useEffect(() => {
+    setVote(null);
+    setNote("");
+    setState("idle");
+  }, [nodeId]);
+
+  if (state === "submitted") {
     return (
       <div className="feedback-bar thanks">
         의견 감사합니다 — 매뉴얼 개선에 반영하겠습니다.
       </div>
     );
   }
+
+  const submit = async () => {
+    if (!vote || state === "submitting") return;
+    setState("submitting");
+    try {
+      await submitFeedbackAction(nodeId, vote, note);
+      setState("submitted");
+    } catch (err) {
+      console.error("submitFeedbackAction failed", err);
+      setState("error");
+    }
+  };
 
   return (
     <div className="feedback-bar">
@@ -26,6 +47,7 @@ export function FeedbackBar() {
           className={`fb-vote${vote === "up" ? " on" : ""}`}
           onClick={() => setVote("up")}
           aria-label="도움이 됨"
+          disabled={state === "submitting"}
         >
           👍
         </button>
@@ -34,6 +56,7 @@ export function FeedbackBar() {
           className={`fb-vote${vote === "down" ? " on" : ""}`}
           onClick={() => setVote("down")}
           aria-label="보강 필요"
+          disabled={state === "submitting"}
         >
           👎
         </button>
@@ -49,10 +72,16 @@ export function FeedbackBar() {
             }
             value={note}
             onChange={(e) => setNote(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submit();
+            }}
+            maxLength={500}
+            disabled={state === "submitting"}
           />
           <button
             type="button"
-            onClick={() => setSubmitted(true)}
+            onClick={submit}
+            disabled={state === "submitting"}
             style={{
               padding: "6px 12px",
               borderRadius: 6,
@@ -61,11 +90,17 @@ export function FeedbackBar() {
               color: "white",
               fontSize: 12,
               fontWeight: 500,
-              cursor: "pointer",
+              cursor: state === "submitting" ? "wait" : "pointer",
+              opacity: state === "submitting" ? 0.7 : 1,
             }}
           >
-            제출
+            {state === "submitting" ? "제출 중…" : "제출"}
           </button>
+          {state === "error" && (
+            <span style={{ fontSize: 12, color: "#c0392b", marginLeft: 8 }}>
+              제출 실패 — 잠시 후 다시 시도해 주세요.
+            </span>
+          )}
         </>
       )}
     </div>

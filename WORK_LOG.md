@@ -10,8 +10,8 @@ GitHub: https://github.com/bmj4944-dot/manual-workbench
 
 ### 백엔드 / 인프라
 - **Supabase 스키마**: 14개 테이블 (documents, document_content, comments, cases+transcript+lessons, onboarding+questions+progress, page_stats, verifications, whats_new, must_read_documents, compliance_records, document_versions, favorites, attachments, profiles)
-- **마이그레이션 0001~0021** (수동 SQL Editor 적용)
-  - 0001 init / 0002 profiles decouple / 0003 temp_open_read / 0004 smart_updated_at / 0005 auth + handle_new_user / 0006 user_writes + auth_profile_id / 0007 fix(definer→invoker) / 0008 inline_rls_lookup + debug_auth_info / 0009 grant_permissions + backfill / 0010 content_writes / 0011 storage_setup (documents-pdf) / 0012 attachments table + bucket / 0013 documents INSERT/DELETE / 0014 page_stats writes (record_page_stat RPC) / 0015 verifications writes / 0016 comment_threads (parent_comment_id) / 0017 whats_new auto-derive 트리거 / 0018 search (pg_trgm + search_documents RPC) / 0019 document_feedback / 0020 drop debug_auth_info() / 0021 workflow_visibility (can_view_document RLS)
+- **마이그레이션 0001~0022** (수동 SQL Editor 적용)
+  - 0001 init / 0002 profiles decouple / 0003 temp_open_read / 0004 smart_updated_at / 0005 auth + handle_new_user / 0006 user_writes + auth_profile_id / 0007 fix(definer→invoker) / 0008 inline_rls_lookup + debug_auth_info / 0009 grant_permissions + backfill / 0010 content_writes / 0011 storage_setup (documents-pdf) / 0012 attachments table + bucket / 0013 documents INSERT/DELETE / 0014 page_stats writes (record_page_stat RPC) / 0015 verifications writes / 0016 comment_threads (parent_comment_id) / 0017 whats_new auto-derive 트리거 / 0018 search (pg_trgm + search_documents RPC) / 0019 document_feedback / 0020 drop debug_auth_info() / 0021 workflow_visibility (can_view_document RLS) / 0022 service_role grants
 - **Auth**: Magic Link + Google OAuth, 미인증은 /login 강제 리다이렉트, profile 자동 생성 트리거
 - **RLS**: authenticated_read 전체 + 본인/admin/reviewer 한정 write
 - **Storage 버킷**: `documents-pdf`, `documents-attachments`
@@ -153,6 +153,12 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - `npm install` 재실행 — `@anthropic-ai/sdk` 가 lock에는 있는데 node_modules 미동기화였음. 설치 후 `lib/actions/ai.ts` 의 implicit any (42·45줄) 도 자동 해소 (SDK ContentBlock 타입 추론)
   - `.next` 캐시 전체 삭제 — 이미 제거된 `/api/diag` route 의 stale 타입 잔재(`.next/types/app/api/diag/route.ts`)가 빌드 결과 가짜 에러를 만들고 있었음
   - **마이그레이션 0020_drop_debug_auth_info.sql 적용 필요**: E-2 후속. 0008 에서 디버깅용으로 추가했던 `debug_auth_info()` RPC 제거. /api/diag 라우트가 이미 사라져 호출처 0건 (grep 확인). 운영의 불필요한 attack surface 정리
+- **service_role GRANT 마이그레이션 0022** (사용자 관리 MVP hotfix)
+  - 증상: `/admin/users` 진입 시 `42501 permission denied for table profiles` (digest 1375786260)
+  - 원인: 프로젝트가 "Automatically expose new tables = OFF" 라서 service_role 도 자동 GRANT 가 안 되어 있었음. 0009 는 anon/authenticated 만 챙김 — admin client 첫 사용 시점에 노출됨
+  - 처방: `0022_service_role_grants.sql` — public 스키마 전체에 service_role GRANT + 미래 테이블용 default privileges. 적용 즉시 admin 콘솔 동작
+  - 교훈: admin client 코드를 추가하면 service_role GRANT 도 함께 점검할 것
+
 - **사용자 관리 MVP** (테스트 환경 셋업용 최소 admin 콘솔)
   - `lib/actions/_helpers.ts` — `requireAdmin(role)` 헬퍼 추가 (콘텐츠 권한 매트릭스와 분리된 메타 권한)
   - `lib/data/users.ts` — `fetchAllUsers()`: profiles + `auth.admin.listUsers()` join (이메일·마지막 로그인). RLS 우회 service-role 필요해서 admin client 사용

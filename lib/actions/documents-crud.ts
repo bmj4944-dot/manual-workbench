@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requirePermission, requireProfile } from "./_helpers";
+import { logAction } from "./_audit";
 import type { NodeStatus, TreeNode } from "@/lib/types";
 
 type DocType = "chapter" | "section" | "item";
@@ -53,6 +54,14 @@ export async function createDocumentAction(input: CreateInput): Promise<TreeNode
   });
   if (error) throw error;
 
+  await logAction({
+    actorId: profileId,
+    action: "document.create",
+    targetType: "document",
+    targetId: id,
+    metadata: { label: input.label, type: input.type, parentId: input.parentId },
+  });
+
   revalidatePath("/");
   return {
     id,
@@ -78,10 +87,16 @@ export async function renameDocumentAction(id: string, label: string) {
 }
 
 export async function deleteDocumentAction(id: string) {
-  const { supabase, role } = await requireProfile();
+  const { supabase, profileId, role } = await requireProfile();
   requirePermission(role, "edit");
   const { error } = await supabase.from("documents").delete().eq("id", id);
   if (error) throw error;
+  await logAction({
+    actorId: profileId,
+    action: "document.delete",
+    targetType: "document",
+    targetId: id,
+  });
   revalidatePath("/");
 }
 

@@ -8,6 +8,7 @@ import {
   requireAdmin,
   requireProfile,
 } from "../_helpers";
+import { logAction } from "../_audit";
 import type { Role } from "@/lib/types";
 
 const ROLE_VALUES: Role[] = ["admin", "reviewer", "editor", "viewer"];
@@ -32,6 +33,14 @@ export async function setUserRoleAction(
 
   // 자기 자신 강등 차단
   if (targetProfileId === selfId && newRole !== "admin") {
+    await logAction({
+      actorId: selfId,
+      action: "user.role_change",
+      targetType: "profile",
+      targetId: targetProfileId,
+      metadata: { newRole, reason: "self_demote_blocked" },
+      ok: false,
+    });
     return fail("본인을 관리자에서 강등할 수 없습니다.");
   }
 
@@ -51,6 +60,14 @@ export async function setUserRoleAction(
         .eq("role", "admin");
       if (cErr) throw cErr;
       if ((count ?? 0) <= 1) {
+        await logAction({
+          actorId: selfId,
+          action: "user.role_change",
+          targetType: "profile",
+          targetId: targetProfileId,
+          metadata: { newRole, reason: "last_admin_blocked" },
+          ok: false,
+        });
         return fail("마지막 관리자는 강등할 수 없습니다.");
       }
     }
@@ -61,6 +78,14 @@ export async function setUserRoleAction(
     .update({ role: newRole })
     .eq("id", targetProfileId);
   if (error) throw error;
+
+  await logAction({
+    actorId: selfId,
+    action: "user.role_change",
+    targetType: "profile",
+    targetId: targetProfileId,
+    metadata: { newRole },
+  });
 
   revalidatePath("/admin/users");
   return { ok: true };
@@ -73,7 +98,7 @@ export async function inviteUserAction(
   email: string,
   initialRole?: Role,
 ): Promise<ActionResult> {
-  const { role: selfRole } = await requireProfile();
+  const { profileId: selfId, role: selfRole } = await requireProfile();
   requireAdmin(selfRole);
 
   const cleaned = email.trim().toLowerCase();
@@ -147,6 +172,14 @@ export async function inviteUserAction(
     }
   }
 
+  await logAction({
+    actorId: selfId,
+    action: "user.invite",
+    targetType: "auth.user",
+    targetId: authUserId,
+    metadata: { email: cleaned, initialRole: initialRole ?? "viewer" },
+  });
+
   revalidatePath("/admin/users");
   return { ok: true };
 }
@@ -199,6 +232,13 @@ export async function setUserActiveAction(
     .eq("id", targetProfileId);
   if (error) throw error;
 
+  await logAction({
+    actorId: selfId,
+    action: active ? "user.enable" : "user.disable",
+    targetType: "profile",
+    targetId: targetProfileId,
+  });
+
   revalidatePath("/admin/users");
   return { ok: true };
 }
@@ -230,8 +270,23 @@ export async function forceSignOutAction(
   const { error } = await admin.auth.admin.signOut(authUserId, "global");
   if (error) {
     console.error("[forceSignOutAction] signOut failed:", error);
+    await logAction({
+      actorId: selfId,
+      action: "user.force_signout",
+      targetType: "profile",
+      targetId: targetProfileId,
+      metadata: { error: error.message },
+      ok: false,
+    });
     return fail(`강제 로그아웃 실패: ${error.message}`);
   }
+
+  await logAction({
+    actorId: selfId,
+    action: "user.force_signout",
+    targetType: "profile",
+    targetId: targetProfileId,
+  });
 
   revalidatePath("/admin/users");
   return { ok: true };

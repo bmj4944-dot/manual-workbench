@@ -7,6 +7,7 @@ import {
   requirePermission,
   requireProfile,
 } from "./_helpers";
+import { logAction } from "./_audit";
 import type { NodeStatus } from "@/lib/types";
 
 const STATUS_TO_PERMISSION: Record<NodeStatus, string> = {
@@ -62,6 +63,14 @@ export async function rejectDocumentAction(
     resolved: false,
   });
   if (cmtErr) throw cmtErr;
+
+  await logAction({
+    actorId: profileId,
+    action: "workflow.reject",
+    targetType: "document",
+    targetId: documentId,
+    metadata: { reason: trimmed },
+  });
 
   revalidatePath("/");
   return { ok: true };
@@ -120,6 +129,14 @@ export async function setNodeStatusAction(
       });
     if (versErr) throw versErr;
   }
+
+  await logAction({
+    actorId: profileId,
+    action: "workflow.transition",
+    targetType: "document",
+    targetId: documentId,
+    metadata: { status },
+  });
 
   revalidatePath("/");
 }

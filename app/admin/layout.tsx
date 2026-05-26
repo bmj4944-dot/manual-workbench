@@ -68,6 +68,16 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           >
             사용자
           </Link>
+          <Link
+            href="/admin/audit"
+            style={{
+              fontSize: 12.5,
+              color: "var(--ink-2)",
+              textDecoration: "none",
+            }}
+          >
+            감사 로그
+          </Link>
         </nav>
       </header>
       <main style={{ padding: "24px 20px" }}>{children}</main>

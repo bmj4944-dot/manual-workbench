@@ -10,8 +10,8 @@ GitHub: https://github.com/bmj4944-dot/manual-workbench
 
 ### 백엔드 / 인프라
 - **Supabase 스키마**: 14개 테이블 (documents, document_content, comments, cases+transcript+lessons, onboarding+questions+progress, page_stats, verifications, whats_new, must_read_documents, compliance_records, document_versions, favorites, attachments, profiles)
-- **마이그레이션 0001~0022** (수동 SQL Editor 적용)
-  - 0001 init / 0002 profiles decouple / 0003 temp_open_read / 0004 smart_updated_at / 0005 auth + handle_new_user / 0006 user_writes + auth_profile_id / 0007 fix(definer→invoker) / 0008 inline_rls_lookup + debug_auth_info / 0009 grant_permissions + backfill / 0010 content_writes / 0011 storage_setup (documents-pdf) / 0012 attachments table + bucket / 0013 documents INSERT/DELETE / 0014 page_stats writes (record_page_stat RPC) / 0015 verifications writes / 0016 comment_threads (parent_comment_id) / 0017 whats_new auto-derive 트리거 / 0018 search (pg_trgm + search_documents RPC) / 0019 document_feedback / 0020 drop debug_auth_info() / 0021 workflow_visibility (can_view_document RLS) / 0022 service_role grants
+- **마이그레이션 0001~0025** (수동 SQL Editor 적용)
+  - 0001 init / 0002 profiles decouple / 0003 temp_open_read / 0004 smart_updated_at / 0005 auth + handle_new_user / 0006 user_writes + auth_profile_id / 0007 fix(definer→invoker) / 0008 inline_rls_lookup + debug_auth_info / 0009 grant_permissions + backfill / 0010 content_writes / 0011 storage_setup (documents-pdf) / 0012 attachments table + bucket / 0013 documents INSERT/DELETE / 0014 page_stats writes (record_page_stat RPC) / 0015 verifications writes / 0016 comment_threads (parent_comment_id) / 0017 whats_new auto-derive 트리거 / 0018 search (pg_trgm + search_documents RPC) / 0019 document_feedback / 0020 drop debug_auth_info() / 0021 workflow_visibility (can_view_document RLS) / 0022 service_role grants / 0023 default_role_viewer / 0024 user_lifecycle (is_active + RLS) / 0025 audit_logs
 - **Auth**: Magic Link + Google OAuth, 미인증은 /login 강제 리다이렉트, profile 자동 생성 트리거
 - **RLS**: authenticated_read 전체 + 본인/admin/reviewer 한정 write
 - **Storage 버킷**: `documents-pdf`, `documents-attachments`
@@ -153,6 +153,32 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - `npm install` 재실행 — `@anthropic-ai/sdk` 가 lock에는 있는데 node_modules 미동기화였음. 설치 후 `lib/actions/ai.ts` 의 implicit any (42·45줄) 도 자동 해소 (SDK ContentBlock 타입 추론)
   - `.next` 캐시 전체 삭제 — 이미 제거된 `/api/diag` route 의 stale 타입 잔재(`.next/types/app/api/diag/route.ts`)가 빌드 결과 가짜 에러를 만들고 있었음
   - **마이그레이션 0020_drop_debug_auth_info.sql 적용 필요**: E-2 후속. 0008 에서 디버깅용으로 추가했던 `debug_auth_info()` RPC 제거. /api/diag 라우트가 이미 사라져 호출처 0건 (grep 확인). 운영의 불필요한 attack surface 정리
+- **보안 그룹 2 — 감사 로그** (모든 후속 보안 그룹의 토대)
+  - **마이그레이션 0025_audit_logs.sql 적용 필요**: `audit_logs(id, actor_id, action, target_type, target_id, metadata jsonb, ok, ip, ua, created_at)` + 인덱스 4종. SELECT 는 admin/reviewer 만, INSERT 는 service_role 만 (server action 이 admin client 로 작성)
+  - `lib/actions/_audit.ts`: `logAction({ actorId, action, targetType, targetId, metadata, ok })` fire-and-forget 헬퍼. 실패도 호출자 영향 없음
+  - 핵심 8개 server action 에 hook:
+    - user.role_change / user.invite / user.disable / user.enable / user.force_signout (admin 콘솔)
+    - workflow.transition / workflow.reject (워크플로 상태 전환)
+    - document.create / document.delete (문서 생명주기)
+  - 검증 실패도 `ok: false` 로 기록 — "X 가 시도했지만 차단됨" 추적 (예: 본인 강등 시도, 마지막 admin 강등 시도)
+  - `lib/data/audit.ts`: `fetchAuditLogs(limit)` — admin client, profiles 와 actor_id join 으로 이름 fill
+  - `/admin/audit/page.tsx` + `audit-client.tsx`: 시각/액터/액션/대상/메타 5열 표. 검색 (액터·액션·대상·metadata 전체), 액션 셀렉트 필터, OK/FAIL 필터, 행 클릭 시 metadata JSON 펼치기. FAIL 행은 빨간 톤 배경
+  - admin layout 네비에 "감사 로그" 링크 추가
+
+- **사용자 라이프사이클 (Group B)** — 비활성화 + 강제 로그아웃
+  - **마이그레이션 0024_user_lifecycle.sql 적용 필요**: `profiles.is_active / disabled_at / disabled_by` 컬럼. `is_my_profile_active()` SECURITY DEFINER 헬퍼. 주요 write 정책(comments/documents/document_content) 에 `public.is_my_profile_active()` 검사 추가
+  - `_helpers.requireProfile` 에 is_active 게이트 — 비활성 계정은 모든 server action 차단
+  - `setUserActiveAction(id, active)`: 본인 비활성화 차단, 마지막 활성 admin 비활성화 차단
+  - `forceSignOutAction(id)`: `auth.admin.signOut(authUserId, 'global')` 로 모든 세션 무효화. 본인 차단
+  - `/admin/users` 행에 비활성/활성 토글 + 강제 로그아웃 버튼. 비활성 행은 회색 + "비활성" 배지. 본인 액션은 disabled
+
+- **result 패턴 통일 (Group A)** — production 빌드에서 친절 메시지 노출
+  - `_helpers.ts` 에 공용 `ActionResult<T>` 타입 + `actionFail()` 헬퍼
+  - rejectDocumentAction / addTagAction (+ 기존 admin/users 액션들) 모두 ActionResult 반환. 사용자 검증 실패는 `fail()`, DB 장애만 throw
+  - workbench-context 호출처 (rejectDocument, addTag) 에서 `res.ok` 분기 + rollback
+  - **마이그레이션 0023_default_role_viewer.sql 적용 필요**: handle_new_user 트리거 default role을 editor → viewer 로. 운영 안전 (가입만으로 편집 권한 부여 차단). 기존 editor 사용자는 그대로
+  - `inviteUserAction` short-poll skip 기준 viewer 로 갱신, InviteModal 기본값도 viewer
+
 - **service_role GRANT 마이그레이션 0022** (사용자 관리 MVP hotfix)
   - 증상: `/admin/users` 진입 시 `42501 permission denied for table profiles` (digest 1375786260)
   - 원인: 프로젝트가 "Automatically expose new tables = OFF" 라서 service_role 도 자동 GRANT 가 안 되어 있었음. 0009 는 anon/authenticated 만 챙김 — admin client 첫 사용 시점에 노출됨

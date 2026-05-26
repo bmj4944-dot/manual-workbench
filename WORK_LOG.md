@@ -9,9 +9,9 @@ GitHub: https://github.com/bmj4944-dot/manual-workbench
 ## ✅ 완료된 작업
 
 ### 백엔드 / 인프라
-- **Supabase 스키마**: 14개 테이블 (documents, document_content, comments, cases+transcript+lessons, onboarding+questions+progress, page_stats, verifications, whats_new, must_read_documents, compliance_records, document_versions, favorites, attachments, profiles)
-- **마이그레이션 0001~0013** (수동 SQL Editor 적용)
-  - 0001 init / 0002 profiles decouple / 0003 temp_open_read / 0004 smart_updated_at / 0005 auth + handle_new_user / 0006 user_writes + auth_profile_id / 0007 fix(definer→invoker) / 0008 inline_rls_lookup + debug_auth_info / 0009 grant_permissions + backfill / 0010 content_writes / 0011 storage_setup (documents-pdf) / 0012 attachments table + bucket / 0013 documents INSERT/DELETE
+- **Supabase 스키마**: 15개 테이블 (documents, document_content, comments, cases+transcript+lessons, onboarding+questions+progress, page_stats, verifications, whats_new, must_read_documents, compliance_records, document_versions, favorites, attachments, profiles, document_feedback)
+- **마이그레이션 0001~0014** (수동 SQL Editor 적용)
+  - 0001 init / 0002 profiles decouple / 0003 temp_open_read / 0004 smart_updated_at / 0005 auth + handle_new_user / 0006 user_writes + auth_profile_id / 0007 fix(definer→invoker) / 0008 inline_rls_lookup + debug_auth_info / 0009 grant_permissions + backfill / 0010 content_writes / 0011 storage_setup (documents-pdf) / 0012 attachments table + bucket / 0013 documents INSERT/DELETE / 0014 document_feedback
 - **Auth**: Magic Link + Google OAuth, 미인증은 /login 강제 리다이렉트, profile 자동 생성 트리거
 - **RLS**: authenticated_read 전체 + 본인/admin/reviewer 한정 write
 - **Storage 버킷**: `documents-pdf`, `documents-attachments`
@@ -28,6 +28,8 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - pdf: uploadPdfAction (badge='PDF' 설정)
 - attachments: upload/delete (한글 파일명 보존 — explicit "name" 필드 + UUID 경로)
 - documents-crud: create / addSibling / duplicate / rename / delete / move
+- tags: updateTagsAction (document_content.tags 배열 UPSERT, edit 권한)
+- feedback: submitFeedbackAction (UPSERT on document_id+user_id, 1표·최신 의견 덮어쓰기)
 
 ### UI 컴포넌트 — manual2와 1:1 매칭
 - **Topbar** brand(로고 36×36 + 텍스트) / sep / 빵부스러기 / nav-btn 4개 / search / mode-switch / save-state / role-switch / avatars / icon-btn(테마) / NotificationsBell / 사용자 메뉴
@@ -65,6 +67,17 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - **Server Action 본문 1MB → 10MB**: `next.config.mjs`에 `serverActions.bodySizeLimit` 설정 — 1.8MB 파일 첨부 시 undefined 반환되던 문제 해결
 - **WORK_LOG.md 작성** + 메모리 정착
 
+### 2026-05-26 추가 — 목업 → 실동작 전환
+- **C-1 태그 편집 구현 완료**
+  - `lib/actions/tags.ts`: `updateTagsAction(documentId, tags[])` — 'edit' 권한 필요. trim·중복제거·길이(32) / 개수(24) 제한. `document_content` UPSERT
+  - `lib/workbench-context.tsx`: `updateTags(nodeId, tags)` 콜백 — 옵티미스틱 로컬 업데이트 + 실패 시 이전 값 롤백
+  - `components/shell/right-panel.tsx`: 정적 "+ 추가" span → `TagsEditor` 컴포넌트. 인라인 input (Enter 추가, Esc 취소, blur 시 커밋), 각 칩에 × 삭제 버튼, `can("edit")` 사용자에게만 노출
+- **피드백 제출 DB 연결 구현 완료** (WORK_LOG 미등재 항목, 코드에서 발견)
+  - `supabase/migrations/0014_document_feedback.sql`: 새 테이블 `document_feedback` (id, document_id, user_id, vote up/down CHECK, note, created/updated_at). UNIQUE (document_id, user_id)로 사용자당 1표·최신 의견 덮어쓰기. RLS: 인증 SELECT, 본인 INSERT/UPDATE/DELETE. `set_updated_at` 트리거 부착. — 2026-05-26 SQL Editor에 수동 적용 완료
+  - `lib/actions/feedback.ts`: `submitFeedbackAction(documentId, vote, note?)` — UPSERT on `(document_id, user_id)`, note 500자 제한·trim
+  - `components/shell/feedback-bar.tsx`: 상태 머신 idle/submitting/submitted/error, Enter 키 제출, 실패 메시지 노출, 문서 변경 시 폼 리셋
+  - `components/shell/main-pane.tsx`: `<FeedbackBar nodeId={activeId} />`로 prop 전달
+
 ---
 
 ## 📋 해야 할 작업
@@ -81,7 +94,7 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 - [ ] **B-2 스크립트 카드 / 결정 트리 / 임베드 편집 UI** (현재 삽입만, 콘텐츠 수정 UI 부재)
 
 ### C. 데이터 / 백엔드
-- [ ] **C-1 태그 편집** (`+ 추가` 실제 동작 — document_content.tags array UPDATE)
+- [x] ~~**C-1 태그 편집** (`+ 추가` 실제 동작 — document_content.tags array UPDATE)~~ — 2026-05-26 완료
 - [ ] **C-2 댓글 답글** (스레드 구조; comments에 parent_comment_id)
 - [ ] **C-3 AI 요약 Claude API 연동** (현재 placeholder 시뮬레이션)
 - [ ] **C-4 페이지 통계 실시간 추적** (view/copy/search 카운트 자동 갱신)
@@ -128,8 +141,12 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
 ## 🚀 다음 세션 첫 액션 후보
 
 1. **A-4 챗봇 위젯** (manual2 chatbot.jsx 포팅) — 우하단 플로팅 widget, 매뉴얼 본문 검색 + Claude API
-2. **C-1 태그 편집** (가장 자주 보이는 인터랙션 누락)
-3. **B-1 이미지 Storage 업로드** (저장된 블롭이 새로고침 시 사라지는 이슈)
+2. **B-1 이미지 Storage 업로드** (저장된 블롭이 새로고침 시 사라지는 이슈)
+3. **C-3 AI 요약 Claude API 연동** (현재 setTimeout 1200ms 시뮬레이션, right-panel.tsx:436~)
 4. **A-6 verify-pill / ack-bar 정합**
 
-추천 시작: **A-4 (챗봇)** 또는 **C-1 (태그 편집)**.
+추천 시작: **A-4 (챗봇)** 또는 **C-3 (AI 요약 실연동)** — 둘 다 Claude API 연결이 본질이라 묶어서 진행 가능.
+
+### 피드백 후속 (추가 발견)
+- 현재 `document_feedback` 작성만 구현됨. 대시보드(`components/views/dashboard-view.tsx`)에 집계(👍/👎 비율·문서별 랭킹) 노출은 별도 작업.
+- 동일 사용자 재방문 시 이전 vote/note 선표시하는 prefill 미구현 (UX 폴리시).

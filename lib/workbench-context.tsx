@@ -34,6 +34,7 @@ import {
 } from "./actions/favorites";
 import { acknowledgeMustReadAction } from "./actions/compliance";
 import { saveBodyAction } from "./actions/content";
+import { updateTagsAction } from "./actions/tags";
 import { setNodeStatusAction } from "./actions/workflow";
 import { uploadPdfAction } from "./actions/pdf";
 import {
@@ -130,6 +131,7 @@ type WorkbenchState = {
   pushVersion: (nodeId: string, body: string, desc?: string) => void;
   restoreVersion: (nodeId: string, versionId: string) => void;
   setBody: (nodeId: string, html: string) => void;
+  updateTags: (nodeId: string, tags: string[]) => void;
   ack: (nodeId: string) => void;
   toggleFavorite: (nodeId: string) => void;
   markWhatsNewRead: (id: string) => void;
@@ -532,6 +534,26 @@ export function WorkbenchProvider({
     });
   }, []);
 
+  const updateTags = useCallback((nodeId: string, nextTags: string[]) => {
+    let previous: string[] | undefined;
+    setContent((prev) => {
+      const cur = prev[nodeId];
+      if (!cur) return prev;
+      previous = cur.tags ?? [];
+      return { ...prev, [nodeId]: { ...cur, tags: nextTags } };
+    });
+    updateTagsAction(nodeId, nextTags).catch((err) => {
+      console.error("updateTagsAction failed", err);
+      if (previous !== undefined) {
+        setContent((prev) => {
+          const cur = prev[nodeId];
+          if (!cur) return prev;
+          return { ...prev, [nodeId]: { ...cur, tags: previous! } };
+        });
+      }
+    });
+  }, []);
+
   const ack = useCallback((nodeId: string) => {
     setAcked((prev) => {
       if (prev.has(nodeId)) return prev;
@@ -846,6 +868,7 @@ export function WorkbenchProvider({
       pushVersion,
       restoreVersion,
       setBody,
+      updateTags,
       ack,
       toggleFavorite,
       markWhatsNewRead,
@@ -906,6 +929,7 @@ export function WorkbenchProvider({
       pushVersion,
       restoreVersion,
       setBody,
+      updateTags,
       ack,
       toggleFavorite,
       markWhatsNewRead,

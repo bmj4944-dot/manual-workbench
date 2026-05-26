@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { findNode, useWorkbench } from "@/lib/workbench-context";
-import type { Attachment, Case, Comment, Version } from "@/lib/types";
+import type { Attachment, Case, Comment, Locale, Version } from "@/lib/types";
 
 type Tab = "outline" | "comments" | "history";
 
@@ -140,6 +140,7 @@ export function RightPanel() {
     cases,
     attachments,
     uploadAttachment,
+    updateTags,
     can,
   } = useWorkbench();
   const [tab, setTab] = useState<Tab>("outline");
@@ -364,19 +365,13 @@ export function RightPanel() {
 
             <div className="meta-section">
               <h4>{locale === "ko" ? "태그" : "Tags"}</h4>
-              <div className="tags-row">
-                {(content?.tags ?? []).map((tg) => (
-                  <span key={tg} className="tg">
-                    {tg}
-                  </span>
-                ))}
-                <span
-                  className="tg"
-                  style={{ color: "var(--ink-4)", cursor: "pointer" }}
-                >
-                  + 추가
-                </span>
-              </div>
+              <TagsEditor
+                nodeId={activeId}
+                tags={content?.tags ?? []}
+                locale={locale}
+                canEdit={can("edit")}
+                onChange={(next) => updateTags(activeId, next)}
+              />
             </div>
 
             <div className="meta-section">
@@ -1001,6 +996,132 @@ function HistoryTab({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ─── Tags editor ───────────────────────────────────────────────────
+function TagsEditor({
+  nodeId,
+  tags,
+  locale,
+  canEdit,
+  onChange,
+}: {
+  nodeId: string;
+  tags: string[];
+  locale: Locale;
+  canEdit: boolean;
+  onChange: (next: string[]) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setAdding(false);
+    setDraft("");
+  }, [nodeId]);
+
+  useEffect(() => {
+    if (adding) inputRef.current?.focus();
+  }, [adding]);
+
+  const commit = () => {
+    const value = draft.trim();
+    if (!value) {
+      setAdding(false);
+      setDraft("");
+      return;
+    }
+    if (!tags.includes(value)) {
+      onChange([...tags, value]);
+    }
+    setDraft("");
+    // Stay open so users can add several in a row.
+  };
+
+  const cancel = () => {
+    setAdding(false);
+    setDraft("");
+  };
+
+  const remove = (tg: string) => {
+    onChange(tags.filter((t) => t !== tg));
+  };
+
+  return (
+    <div className="tags-row">
+      {tags.map((tg) => (
+        <span key={tg} className="tg" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          {tg}
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => remove(tg)}
+              aria-label={locale === "ko" ? `${tg} 삭제` : `Remove ${tg}`}
+              style={{
+                border: 0,
+                background: "transparent",
+                color: "var(--ink-4)",
+                cursor: "pointer",
+                fontSize: 11,
+                lineHeight: 1,
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
+          )}
+        </span>
+      ))}
+      {canEdit && (
+        adding ? (
+          <input
+            ref={inputRef}
+            className="tg"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commit();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                cancel();
+              }
+            }}
+            onBlur={commit}
+            placeholder={locale === "ko" ? "태그…" : "Tag…"}
+            maxLength={32}
+            style={{
+              minWidth: 70,
+              maxWidth: 140,
+              border: "1px dashed var(--line)",
+              background: "transparent",
+              outline: "none",
+              fontSize: 11.5,
+              color: "var(--ink)",
+            }}
+          />
+        ) : (
+          <span
+            className="tg"
+            role="button"
+            tabIndex={0}
+            onClick={() => setAdding(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setAdding(true);
+              }
+            }}
+            style={{ color: "var(--ink-4)", cursor: "pointer" }}
+          >
+            + 추가
+          </span>
+        )
+      )}
     </div>
   );
 }

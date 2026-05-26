@@ -207,8 +207,12 @@ function UserRow({ user, isSelf }: { user: AdminUserRow; isSelf: boolean }) {
     if (newRole === user.role) return;
     startTransition(async () => {
       try {
-        await setUserRoleAction(user.profileId, newRole);
-        toast.success(`${user.name} → ${ROLE_LABELS[newRole].ko}`);
+        const res = await setUserRoleAction(user.profileId, newRole);
+        if (res.ok) {
+          toast.success(`${user.name} → ${ROLE_LABELS[newRole].ko}`);
+        } else {
+          toast.error(res.reason);
+        }
       } catch (err) {
         console.error("setUserRoleAction failed", err);
         toast.error(toastErrorMessage(err, "역할 변경에 실패했습니다."));
@@ -304,9 +308,13 @@ function InviteModal({ onClose }: { onClose: () => void }) {
   const submit = () => {
     startTransition(async () => {
       try {
-        await inviteUserAction(email, role);
-        toast.success(`${email}로 초대 메일을 보냈습니다.`);
-        onClose();
+        const res = await inviteUserAction(email, role);
+        if (res.ok) {
+          toast.success(`${email}로 초대 메일을 보냈습니다.`);
+          onClose();
+        } else {
+          toast.error(res.reason);
+        }
       } catch (err) {
         console.error("inviteUserAction failed", err);
         toast.error(toastErrorMessage(err, "초대에 실패했습니다."));

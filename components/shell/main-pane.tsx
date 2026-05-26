@@ -314,7 +314,7 @@ export function MainPane() {
               <VerifyBar nodeId={activeId} verification={verification} />
             )}
             <MustReadBar nodeId={activeId} />
-            <FeedbackBar />
+            <FeedbackBar nodeId={activeId} />
           </>
         }
       />

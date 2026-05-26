@@ -10,8 +10,8 @@ GitHub: https://github.com/bmj4944-dot/manual-workbench
 
 ### 백엔드 / 인프라
 - **Supabase 스키마**: 14개 테이블 (documents, document_content, comments, cases+transcript+lessons, onboarding+questions+progress, page_stats, verifications, whats_new, must_read_documents, compliance_records, document_versions, favorites, attachments, profiles)
-- **마이그레이션 0001~0013** (수동 SQL Editor 적용)
-  - 0001 init / 0002 profiles decouple / 0003 temp_open_read / 0004 smart_updated_at / 0005 auth + handle_new_user / 0006 user_writes + auth_profile_id / 0007 fix(definer→invoker) / 0008 inline_rls_lookup + debug_auth_info / 0009 grant_permissions + backfill / 0010 content_writes / 0011 storage_setup (documents-pdf) / 0012 attachments table + bucket / 0013 documents INSERT/DELETE
+- **마이그레이션 0001~0019** (수동 SQL Editor 적용)
+  - 0001 init / 0002 profiles decouple / 0003 temp_open_read / 0004 smart_updated_at / 0005 auth + handle_new_user / 0006 user_writes + auth_profile_id / 0007 fix(definer→invoker) / 0008 inline_rls_lookup + debug_auth_info / 0009 grant_permissions + backfill / 0010 content_writes / 0011 storage_setup (documents-pdf) / 0012 attachments table + bucket / 0013 documents INSERT/DELETE / 0014 page_stats writes (record_page_stat RPC) / 0015 verifications writes / 0016 comment_threads (parent_comment_id) / 0017 whats_new auto-derive 트리거 / 0018 search (pg_trgm + search_documents RPC) / 0019 document_feedback
 - **Auth**: Magic Link + Google OAuth, 미인증은 /login 강제 리다이렉트, profile 자동 생성 트리거
 - **RLS**: authenticated_read 전체 + 본인/admin/reviewer 한정 write
 - **Storage 버킷**: `documents-pdf`, `documents-attachments`
@@ -141,6 +141,14 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - `app/globals.css` — `.toast-viewport`, 3 variant (success/error/info), 다크모드 색상, slide-in 애니메이션, `prefers-reduced-motion` 대응
   - `lib/workbench-context.tsx` — 모든 catch 블록(상태 변경/댓글/즐겨찾기/필독/첨부 업로드·삭제/태그/CRUD/순서변경)에 `toast.error` 호출 추가. 자동저장(`setBody`)은 5초 throttle. `alert()` 제거 → toast로 통합
   - `components/shell/main-pane.tsx`, `right-panel.tsx` — 호출자 catch에도 토스트 추가
+
+### 2026-05-26 추가
+- **피드백 제출 DB 저장 구현 완료**: 👍/👎 + note가 실제로 `document_feedback` 테이블에 기록되어 그동안 mockup이던 FeedbackBar 마무리
+  - **마이그레이션 0019_document_feedback.sql 적용 필요**: 새 테이블 (id, document_id→documents, user_id→profiles, vote check up/down, note, created/updated_at). UNIQUE(document_id, user_id)로 사용자당 1표 + 최신 의견 덮어쓰기. RLS: 인증 SELECT, 본인 INSERT/UPDATE/DELETE. `set_updated_at` 트리거 부착
+  - `lib/actions/feedback.ts` — `submitFeedbackAction(documentId, vote, note?)` (UPSERT on `(document_id, user_id)`, note 500자 트림)
+  - `components/shell/feedback-bar.tsx` — `useState` mockup → 상태 머신 idle/submitting/submitted (실패는 idle 복귀 + toast). Enter 키 제출, 문서 변경 시 폼 리셋, submitting 동안 모든 컨트롤 disabled, 성공/실패 모두 toast로 통일
+  - `components/shell/main-pane.tsx` — `<FeedbackBar />` → `<FeedbackBar nodeId={activeId} />`
+  - 후속(별도 todo): 대시보드 집계(👍/👎 비율·문서별 랭킹) 노출, 동일 사용자 재방문 시 이전 vote/note prefill
 
 ---
 

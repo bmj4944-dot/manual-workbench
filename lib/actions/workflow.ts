@@ -19,6 +19,49 @@ const STATUS_LABEL_KO: Record<NodeStatus, string> = {
 };
 
 /**
+ * 검토 단계 거부: review → draft 로 되돌리면서 거부 사유를 댓글로 자동 추가.
+ * reviewer 이상만 호출 가능 (review 권한). 거부는 명시 사유가 있어야 의미가 있어서
+ * 빈 문자열은 막는다.
+ */
+export async function rejectDocumentAction(
+  documentId: string,
+  reason: string,
+) {
+  const { supabase, profileId, role } = await requireProfile();
+  requirePermission(role, "review");
+
+  const trimmed = reason.trim();
+  if (!trimmed) throw new Error("거부 사유를 입력하세요.");
+  if (trimmed.length > 500) throw new Error("거부 사유는 500자 이내여야 합니다.");
+
+  const { data: cur } = await supabase
+    .from("documents")
+    .select("status")
+    .eq("id", documentId)
+    .maybeSingle();
+  const currentStatus = (cur as { status?: NodeStatus | null } | null)?.status;
+  if (currentStatus !== "review") {
+    throw new Error("검토중인 문서만 거부할 수 있습니다.");
+  }
+
+  const { error: updErr } = await supabase
+    .from("documents")
+    .update({ status: "draft" })
+    .eq("id", documentId);
+  if (updErr) throw updErr;
+
+  const { error: cmtErr } = await supabase.from("comments").insert({
+    document_id: documentId,
+    author_id: profileId,
+    body: `[거부] ${trimmed}`,
+    resolved: false,
+  });
+  if (cmtErr) throw cmtErr;
+
+  revalidatePath("/");
+}
+
+/**
  * Updates document.status. Snapshots the current body as a version row so the
  * workflow transition is reflected in history (with 'approved'/'published'
  * tags where applicable).

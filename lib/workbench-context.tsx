@@ -36,7 +36,7 @@ import {
 import { acknowledgeMustReadAction } from "./actions/compliance";
 import { addTagAction, removeTagAction, saveBodyAction } from "./actions/content";
 import { toast, toastErrorMessage } from "./toast";
-import { setNodeStatusAction } from "./actions/workflow";
+import { rejectDocumentAction, setNodeStatusAction } from "./actions/workflow";
 import {
   createUploadSignedUrlAction,
   finalizeAttachmentAction,
@@ -128,6 +128,7 @@ type WorkbenchState = {
   setRole: (r: Role) => void;
   can: (action: string) => boolean;
   setNodeStatus: (id: string, status: NodeStatus) => boolean;
+  rejectDocument: (id: string, reason: string) => Promise<void>;
   addComment: (nodeId: string, body: string, parentId?: string | null) => void;
   resolveComment: (nodeId: string, commentId: string) => void;
   setSaveState: (s: SaveState) => void;
@@ -454,6 +455,61 @@ export function WorkbenchProvider({
       return true;
     },
     [role, members, currentUser, bodyOverrides, content],
+  );
+
+  const rejectDocument = useCallback(
+    async (id: string, reason: string) => {
+      const trimmed = reason.trim();
+      if (!trimmed) {
+        toast.error("거부 사유를 입력하세요.");
+        return;
+      }
+      if (!ROLE_PERMISSIONS[role].includes("review")) {
+        toast.error("거부는 리뷰어 이상만 수행할 수 있습니다.");
+        return;
+      }
+
+      let prevStatus: NodeStatus | undefined;
+      setTree((prev) =>
+        mutate(prev, id, (n) => {
+          prevStatus = n.status;
+          return { ...n, status: "draft" };
+        }),
+      );
+
+      const me = currentUser ?? members.find((m) => m.role === role) ?? members[0];
+      const optimisticId = `tmp-${Date.now()}`;
+      if (me) {
+        const newComment: Comment = {
+          id: optimisticId,
+          who: me.name,
+          initials: me.initials,
+          color: me.color,
+          when: "방금",
+          body: `[거부] ${trimmed}`,
+          parentId: null,
+        };
+        setComments((prev) => ({
+          ...prev,
+          [id]: [newComment, ...(prev[id] ?? [])],
+        }));
+      }
+
+      try {
+        await rejectDocumentAction(id, trimmed);
+      } catch (err) {
+        console.error("rejectDocumentAction failed", err);
+        toast.error(toastErrorMessage(err, "거부 처리에 실패했습니다."));
+        setTree((prev) =>
+          mutate(prev, id, (n) => ({ ...n, status: prevStatus })),
+        );
+        setComments((prev) => ({
+          ...prev,
+          [id]: (prev[id] ?? []).filter((c) => c.id !== optimisticId),
+        }));
+      }
+    },
+    [role, members, currentUser],
   );
 
   const addComment = useCallback(
@@ -1048,6 +1104,7 @@ export function WorkbenchProvider({
       setRole,
       can,
       setNodeStatus,
+      rejectDocument,
       addComment,
       resolveComment,
       setSaveState,
@@ -1112,6 +1169,7 @@ export function WorkbenchProvider({
       openSearch,
       can,
       setNodeStatus,
+      rejectDocument,
       addComment,
       resolveComment,
       setDirty,

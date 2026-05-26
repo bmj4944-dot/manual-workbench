@@ -24,7 +24,7 @@ type CreateInput = {
 };
 
 export async function createDocumentAction(input: CreateInput): Promise<TreeNode> {
-  const { supabase, role } = await requireProfile();
+  const { supabase, profileId, role } = await requireProfile();
   requirePermission(role, "edit");
 
   // Compute next sort_order among siblings
@@ -49,6 +49,7 @@ export async function createDocumentAction(input: CreateInput): Promise<TreeNode
     status: input.status ?? "draft",
     sort_order: sortOrder,
     is_open: false,
+    created_by: profileId,
   });
   if (error) throw error;
 
@@ -91,7 +92,7 @@ export async function addSiblingAction(
   refId: string,
   label?: string,
 ): Promise<TreeNode> {
-  const { supabase, role } = await requireProfile();
+  const { supabase, profileId, role } = await requireProfile();
   requirePermission(role, "edit");
 
   const { data: ref, error: refErr } = await supabase
@@ -120,6 +121,7 @@ export async function addSiblingAction(
     status: "draft",
     sort_order: newSort,
     is_open: false,
+    created_by: profileId,
   });
   if (error) throw error;
   revalidatePath("/");
@@ -139,7 +141,7 @@ export async function addSiblingAction(
 export async function duplicateDocumentAction(
   refId: string,
 ): Promise<TreeNode> {
-  const { supabase, role } = await requireProfile();
+  const { supabase, profileId, role } = await requireProfile();
   requirePermission(role, "edit");
 
   // Load all descendants in one go. With 3-level tree this is cheap.
@@ -182,6 +184,7 @@ export async function duplicateDocumentAction(
     sort_order: number;
     badge: string | null;
     is_open: boolean;
+    created_by: string;
   }> = [];
   const idMap = new Map<string, string>();
 
@@ -203,6 +206,7 @@ export async function duplicateDocumentAction(
       sort_order: newSort,
       badge: src.badge,
       is_open: src.is_open,
+      created_by: profileId,
     });
     const kids = (byParent.get(src.id) ?? []).slice().sort(
       (a, b) => a.sort_order - b.sort_order,

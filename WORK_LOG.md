@@ -153,6 +153,18 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - `npm install` 재실행 — `@anthropic-ai/sdk` 가 lock에는 있는데 node_modules 미동기화였음. 설치 후 `lib/actions/ai.ts` 의 implicit any (42·45줄) 도 자동 해소 (SDK ContentBlock 타입 추론)
   - `.next` 캐시 전체 삭제 — 이미 제거된 `/api/diag` route 의 stale 타입 잔재(`.next/types/app/api/diag/route.ts`)가 빌드 결과 가짜 에러를 만들고 있었음
   - **마이그레이션 0020_drop_debug_auth_info.sql 적용 필요**: E-2 후속. 0008 에서 디버깅용으로 추가했던 `debug_auth_info()` RPC 제거. /api/diag 라우트가 이미 사라져 호출처 0건 (grep 확인). 운영의 불필요한 attack surface 정리
+- **사용자 관리 MVP** (테스트 환경 셋업용 최소 admin 콘솔)
+  - `lib/actions/_helpers.ts` — `requireAdmin(role)` 헬퍼 추가 (콘텐츠 권한 매트릭스와 분리된 메타 권한)
+  - `lib/data/users.ts` — `fetchAllUsers()`: profiles + `auth.admin.listUsers()` join (이메일·마지막 로그인). RLS 우회 service-role 필요해서 admin client 사용
+  - `lib/actions/admin/users.ts`:
+    - `setUserRoleAction(targetId, newRole)`: 자기 자신 강등 차단 + 마지막 admin 강등 차단 (count 검사) + 역할 enum 검증
+    - `inviteUserAction(email, role?)`: `auth.admin.inviteUserByEmail` → 트리거가 profile 생성 → initialRole 지정 시 short-poll 로 즉시 역할 덮어쓰기. 중복 이메일은 친절한 에러
+  - `app/admin/layout.tsx` — admin 게이트 server component. profiles.role !== 'admin' 이면 `/` 리다이렉트. middleware 의 auth gate 이중 방어
+  - `app/admin/users/page.tsx` + `users-client.tsx` — 목록 페이지: 이름·이메일 검색, 역할별 필터 chip(개수 포함), 인라인 역할 드롭다운(useTransition), "+ 사용자 초대" 모달(이메일·초기 역할). 본인은 "나" 배지
+  - `components/shell/topbar.tsx` — 사용자 메뉴에 admin 일 때만 보이는 "관리자 콘솔" 링크 (ShieldCheck 아이콘)
+  - 마이그레이션 불필요 — 기존 profiles + auth.users 그대로 사용
+  - ⚠️ `SUPABASE_SERVICE_ROLE_KEY` 환경변수 + Supabase SMTP 가 동작해야 invite 가 메일 발송. Magic Link 가 동작 중이면 이미 OK
+
 - **보안 그룹 1 — 워크플로 RBAC 강화** (역할별 가시성 + 거부 흐름)
   - **마이그레이션 0021_workflow_visibility.sql 적용 필요**:
     - `can_view_document(doc_id)` 헬퍼: SECURITY DEFINER · STABLE. 역할(admin/reviewer 전체, editor=published+본인작성, viewer=published만) + chapter/section 컨테이너는 항상 통과 + created_by NULL 은 시드 데이터로 간주해 editor 에 허용

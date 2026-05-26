@@ -43,3 +43,15 @@ export function requirePermission(role: Role, action: string) {
     throw new Error(`role '${role}' lacks permission '${action}'`);
   }
 }
+
+/**
+ * admin 전용 server action 가드. requireProfile 로 받은 role 을 검사한다.
+ * 일반 권한 게이트(`requirePermission`) 와 분리해 둔 이유:
+ *   - 'edit'/'review'/'approve'/'publish' 는 콘텐츠 권한 매트릭스
+ *   - admin 전용은 "사람·시스템 관리" 의 메타 권한 — 매트릭스에 묶이지 않음
+ */
+export function requireAdmin(role: Role) {
+  if (role !== "admin") {
+    throw new Error("관리자 권한이 필요합니다.");
+  }
+}

@@ -11,8 +11,10 @@ import {
   Moon,
   PenLine,
   Search,
+  ShieldCheck,
   Sun,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { NotificationsBell } from "./notifications-popover";
 import { useEffect, useState } from "react";
@@ -256,6 +258,15 @@ export function Topbar() {
                     {ROLE_LABELS[currentUser.role].ko}
                   </div>
                 </div>
+                {currentUser.role === "admin" && (
+                  <Link
+                    href="/admin/users"
+                    className="mt-1 flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] text-ink-2 hover:bg-surface-2"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <ShieldCheck size={12} /> 관리자 콘솔
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={onSignOut}

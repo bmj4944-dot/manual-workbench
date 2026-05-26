@@ -82,12 +82,39 @@ export async function inviteUserAction(
 
   const admin = createAdminClient();
 
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(cleaned);
+  // Supabase invite 시 redirect URL 을 명시. SITE_URL 환경변수가 없으면
+  // NEXT_PUBLIC_SITE_URL 또는 Vercel 자동 주입 도메인 fallback.
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+  const redirectTo = siteUrl ? `${siteUrl}/auth/callback` : undefined;
+
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(
+    cleaned,
+    redirectTo ? { redirectTo } : undefined,
+  );
   if (error) {
+    console.error("[inviteUserAction] inviteUserByEmail failed:", {
+      email: cleaned,
+      redirectTo,
+      status: (error as { status?: number }).status,
+      code: (error as { code?: string }).code,
+      message: error.message,
+    });
     if (/already.*registered|exists/i.test(error.message)) {
       throw new Error("이미 가입된 이메일입니다.");
     }
-    throw error;
+    if (/rate.*limit|429/i.test(error.message)) {
+      throw new Error("이메일 발송 한도(시간당 3건)를 초과했습니다. 잠시 후 다시 시도해주세요.");
+    }
+    if (/redirect/i.test(error.message)) {
+      throw new Error(
+        "초대 메일 redirect URL 이 Supabase 에 등록되지 않았습니다. " +
+        "Supabase Dashboard > Authentication > URL Configuration 에서 " +
+        "Site URL 과 Redirect URLs 를 확인해주세요.",
+      );
+    }
+    throw new Error(`초대 실패: ${error.message}`);
   }
   const authUserId = data?.user?.id;
   if (!authUserId) {

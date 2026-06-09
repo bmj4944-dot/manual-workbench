@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { relativeKo } from "./relative-time";
+import { sanitizeBodyHtml } from "@/lib/sanitize";
 import type { DocContent } from "@/lib/types";
 
 type ContentRow = {
@@ -43,7 +44,8 @@ export async function fetchDocumentContent(): Promise<Record<string, DocContent>
     map[row.document_id] = {
       tags: row.tags ?? [],
       version: row.version,
-      body: row.body ?? "",
+      // 읽기 경로 방어 — 레거시(미정제) 본문도 클라이언트엔 정제된 채 전달.
+      body: sanitizeBodyHtml(row.body),
       author,
       updated: relativeKo(new Date(row.updated_at)),
       ...(isPdf ? { type: "pdf" as const } : {}),

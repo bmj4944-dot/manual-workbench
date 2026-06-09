@@ -6,6 +6,7 @@ import {
   requirePermission,
   requireProfile,
 } from "./_helpers";
+import { sanitizeBodyHtml } from "@/lib/sanitize";
 
 export type AddTagResult =
   | { ok: true; tags: string[] | null }
@@ -20,12 +21,15 @@ export async function saveBodyAction(documentId: string, html: string) {
   const { supabase, profileId, role } = await requireProfile();
   requirePermission(role, "edit");
 
+  // 저장형 XSS 방어 — 서버에서 본문을 sanitize 한 뒤 저장 (그룹 5-A).
+  const clean = sanitizeBodyHtml(html);
+
   const { error } = await supabase
     .from("document_content")
     .upsert(
       {
         document_id: documentId,
-        body: html,
+        body: clean,
         author_id: profileId,
       },
       { onConflict: "document_id" },
@@ -145,7 +149,7 @@ export async function pushVersionAction(
     version_label: nextLabel,
     author_id: profileId,
     description,
-    body,
+    body: sanitizeBodyHtml(body),
     tag: tag ?? null,
   });
   if (error) throw error;

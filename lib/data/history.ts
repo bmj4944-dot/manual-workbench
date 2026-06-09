@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { relativeKo } from "./relative-time";
+import { sanitizeBodyHtml } from "@/lib/sanitize";
 import type { Version } from "@/lib/types";
 
 type VersionRow = {
@@ -32,7 +33,7 @@ export async function fetchHistory(): Promise<Record<string, Version[]>> {
       who: r.author?.name ?? "—",
       when: relativeKo(new Date(r.created_at)),
       desc: r.description,
-      body: r.body,
+      body: sanitizeBodyHtml(r.body),
       ...(r.tag ? { tag: r.tag } : {}),
     };
     if (!out[r.document_id]) out[r.document_id] = [];

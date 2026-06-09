@@ -14,8 +14,16 @@ const STAGES: { key: NodeStatus; ko: string; en: string; permission: string }[] 
 ];
 
 export function WorkflowStrip() {
-  const { tree, activeId, locale, setNodeStatus, rejectDocument, can } =
-    useWorkbench();
+  const {
+    tree,
+    activeId,
+    locale,
+    setNodeStatus,
+    setRequiredApprover,
+    rejectDocument,
+    can,
+    members,
+  } = useWorkbench();
   const node = findNode(tree, activeId);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
@@ -52,6 +60,25 @@ export function WorkflowStrip() {
   const canAdvance = next ? can(next.permission) : false;
   const canRevert = prev ? can(current.permission) : false;
   const canReject = (node.status ?? "draft") === "review" && can("review");
+
+  // 승인자 지정(그룹 4-②) — item 문서에만, 지정 권한은 approve 권한자.
+  const isItem = node.type === "item";
+  const canDesignate = isItem && can("approve");
+  const approverCandidates = members.filter(
+    (m) => m.role === "admin" || m.role === "reviewer",
+  );
+  const currentApprover =
+    members.find((m) => m.id === node.requiredApproverId) ?? null;
+
+  // SLA 배지(그룹 4-③) — review 상태 + 기한이 있을 때만. 클라이언트 계산.
+  const inReview = (node.status ?? "draft") === "review";
+  const deadlineMs =
+    inReview && node.reviewDeadline ? new Date(node.reviewDeadline).getTime() : null;
+  const slaDaysLeft =
+    deadlineMs !== null
+      ? Math.ceil((deadlineMs - Date.now()) / 86_400_000)
+      : null;
+  const slaOverdue = slaDaysLeft !== null && slaDaysLeft < 0;
 
   const submitReject = async () => {
     if (submitting) return;
@@ -93,6 +120,101 @@ export function WorkflowStrip() {
         })}
 
         <div className="actions">
+          {slaDaysLeft !== null && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: 4,
+                marginRight: 4,
+                color: slaOverdue ? "#c0392b" : "var(--ink-2)",
+                background: slaOverdue ? "rgba(192,57,43,0.1)" : "var(--surface-2)",
+                border: `1px solid ${slaOverdue ? "#c0392b" : "var(--line)"}`,
+              }}
+              title={
+                node.reviewDeadline
+                  ? `검토 기한: ${new Date(node.reviewDeadline).toLocaleString("ko-KR")}`
+                  : undefined
+              }
+            >
+              {slaOverdue
+                ? locale === "ko"
+                  ? `기한 초과 ${Math.abs(slaDaysLeft)}일`
+                  : `Overdue ${Math.abs(slaDaysLeft)}d`
+                : slaDaysLeft === 0
+                ? locale === "ko"
+                  ? "오늘 마감"
+                  : "Due today"
+                : locale === "ko"
+                ? `검토 기한 D-${slaDaysLeft}`
+                : `Due in ${slaDaysLeft}d`}
+            </span>
+          )}
+          {isItem && (canDesignate ? (
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                fontSize: 11.5,
+                color: "var(--ink-2)",
+                marginRight: 4,
+              }}
+              title={
+                locale === "ko"
+                  ? "지정하면 이 사람만 승인할 수 있습니다"
+                  : "Only this person can approve when set"
+              }
+            >
+              <span style={{ color: "var(--ink-3)" }}>
+                {locale === "ko" ? "승인자" : "Approver"}
+              </span>
+              <select
+                value={node.requiredApproverId ?? ""}
+                onChange={(e) =>
+                  setRequiredApprover(activeId, e.target.value || null)
+                }
+                style={{
+                  fontSize: 11.5,
+                  padding: "3px 6px",
+                  borderRadius: 4,
+                  border: "1px solid var(--line)",
+                  background: "var(--surface)",
+                  color: "var(--ink)",
+                  maxWidth: 140,
+                }}
+              >
+                <option value="">
+                  {locale === "ko" ? "지정 안 함 (누구나)" : "Anyone"}
+                </option>
+                {approverCandidates.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : currentApprover ? (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11.5,
+                color: "var(--ink-3)",
+                marginRight: 4,
+              }}
+            >
+              {locale === "ko" ? "승인자" : "Approver"}:{" "}
+              <strong style={{ color: "var(--ink-2)" }}>
+                {currentApprover.name}
+              </strong>
+            </span>
+          ) : null)}
           {canReject && !rejecting && (
             <button
               type="button"

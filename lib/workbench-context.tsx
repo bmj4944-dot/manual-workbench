@@ -36,7 +36,15 @@ import {
 import { acknowledgeMustReadAction } from "./actions/compliance";
 import { addTagAction, removeTagAction, saveBodyAction } from "./actions/content";
 import { toast, toastErrorMessage } from "./toast";
-import { rejectDocumentAction, setNodeStatusAction } from "./actions/workflow";
+import {
+  rejectDocumentAction,
+  setNodeStatusAction,
+  setRequiredApproverAction,
+} from "./actions/workflow";
+import {
+  markAllNotificationsReadAction,
+  markNotificationReadAction,
+} from "./actions/notifications";
 import {
   createUploadSignedUrlAction,
   finalizeAttachmentAction,
@@ -53,7 +61,9 @@ import {
   moveDocumentAction,
   renameDocumentAction,
 } from "./actions/documents-crud";
+import { REVIEW_SLA_DAYS } from "./types";
 import type {
+  AppNotification,
   Attachment,
   Case,
   Comment,
@@ -102,6 +112,7 @@ type WorkbenchState = {
   verifications: Record<string, Verification>;
   mustRead: ReadonlySet<string>;
   whatsNew: WhatsNewItem[];
+  notifications: AppNotification[];
   compliance: Record<string, ReadonlySet<string>>;
   bodyOverrides: Record<string, string>;
   acked: ReadonlySet<string>;
@@ -128,6 +139,7 @@ type WorkbenchState = {
   setRole: (r: Role) => void;
   can: (action: string) => boolean;
   setNodeStatus: (id: string, status: NodeStatus) => boolean;
+  setRequiredApprover: (id: string, approverId: string | null) => void;
   rejectDocument: (id: string, reason: string) => Promise<void>;
   addComment: (nodeId: string, body: string, parentId?: string | null) => void;
   resolveComment: (nodeId: string, commentId: string) => void;
@@ -140,6 +152,8 @@ type WorkbenchState = {
   toggleFavorite: (nodeId: string) => void;
   markWhatsNewRead: (id: string) => void;
   markAllWhatsNewRead: () => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
   completeStep: (taskId: string) => void;
   recordQuizAnswer: (taskId: string, q: number, opt: number) => void;
   attachPdf: (nodeId: string, file: File) => Promise<void>;
@@ -238,6 +252,7 @@ export function WorkbenchProvider({
   initialVerifications,
   initialMustRead,
   initialWhatsNew,
+  initialNotifications,
   initialCompliance,
   initialComments,
   initialHistory,
@@ -256,6 +271,7 @@ export function WorkbenchProvider({
   initialVerifications?: Record<string, Verification>;
   initialMustRead?: ReadonlySet<string>;
   initialWhatsNew?: WhatsNewItem[];
+  initialNotifications?: AppNotification[];
   initialCompliance?: Record<string, ReadonlySet<string>>;
   initialComments?: Record<string, Comment[]>;
   initialHistory?: Record<string, Version[]>;
@@ -284,6 +300,9 @@ export function WorkbenchProvider({
     initialMustRead ?? MUST_READ_IDS,
   );
   const [whatsNew] = useState<WhatsNewItem[]>(initialWhatsNew ?? WHATS_NEW);
+  const [notifications, setNotifications] = useState<AppNotification[]>(
+    initialNotifications ?? [],
+  );
   const [compliance] = useState<Record<string, ReadonlySet<string>>>(
     initialCompliance ?? COMPLIANCE_RECORDS,
   );
@@ -395,12 +414,19 @@ export function WorkbenchProvider({
       };
       if (!ROLE_PERMISSIONS[role].includes(needed[status])) return false;
 
-      // 1) Optimistically update tree status
+      // 1) Optimistically update tree status + SLA deadline (review 진입 시
+      //    now+SLA, 그 외엔 null — 서버 setNodeStatusAction 과 동일하게).
       let prevStatus: NodeStatus | undefined;
+      let prevDeadline: string | null | undefined;
+      const nextDeadline =
+        status === "review"
+          ? new Date(Date.now() + REVIEW_SLA_DAYS * 86_400_000).toISOString()
+          : null;
       setTree((prev) =>
         mutate(prev, id, (n) => {
           prevStatus = n.status;
-          return { ...n, status };
+          prevDeadline = n.reviewDeadline;
+          return { ...n, status, reviewDeadline: nextDeadline };
         }),
       );
 
@@ -437,12 +463,15 @@ export function WorkbenchProvider({
         });
       }
 
-      // 3) Server action; on failure, rollback both tree status and version.
-      setNodeStatusAction(id, status).catch((err) => {
-        console.error("setNodeStatusAction failed", err);
-        toast.error(toastErrorMessage(err, "상태 변경에 실패했습니다."));
+      // 3) Server action; on failure rollback tree status + version snapshot.
+      //    검증 실패는 ActionResult(ok:false)로, 예측 못한 장애는 throw 로 온다.
+      const rollback = () => {
         setTree((prev) =>
-          mutate(prev, id, (n) => ({ ...n, status: prevStatus })),
+          mutate(prev, id, (n) => ({
+            ...n,
+            status: prevStatus,
+            reviewDeadline: prevDeadline,
+          })),
         );
         if (optimisticVersionId) {
           const vid = optimisticVersionId;
@@ -451,10 +480,58 @@ export function WorkbenchProvider({
             [id]: (prev[id] ?? []).filter((x) => x.id !== vid),
           }));
         }
-      });
+      };
+      setNodeStatusAction(id, status)
+        .then((res) => {
+          if (!res.ok) {
+            toast.error(res.reason);
+            rollback();
+          }
+        })
+        .catch((err) => {
+          console.error("setNodeStatusAction failed", err);
+          toast.error(toastErrorMessage(err, "상태 변경에 실패했습니다."));
+          rollback();
+        });
       return true;
     },
     [role, members, currentUser, bodyOverrides, content],
+  );
+
+  // 지정 승인자 설정/해제 — 낙관적 트리 갱신 후 server action, 실패 시 롤백.
+  const setRequiredApprover = useCallback(
+    (id: string, approverId: string | null) => {
+      if (!ROLE_PERMISSIONS[role].includes("approve")) {
+        toast.error("승인자 지정은 관리자·검토자만 할 수 있습니다.");
+        return;
+      }
+      let prev: string | null | undefined;
+      setTree((cur) =>
+        mutate(cur, id, (n) => {
+          prev = n.requiredApproverId;
+          return { ...n, requiredApproverId: approverId };
+        }),
+      );
+      const rollback = () =>
+        setTree((cur) =>
+          mutate(cur, id, (n) => ({ ...n, requiredApproverId: prev })),
+        );
+      setRequiredApproverAction(id, approverId)
+        .then((res) => {
+          if (res.ok) {
+            toast.success(approverId ? "승인자를 지정했습니다." : "승인자 지정을 해제했습니다.");
+          } else {
+            toast.error(res.reason);
+            rollback();
+          }
+        })
+        .catch((err) => {
+          console.error("setRequiredApproverAction failed", err);
+          toast.error(toastErrorMessage(err, "승인자 지정에 실패했습니다."));
+          rollback();
+        });
+    },
+    [role],
   );
 
   const rejectDocument = useCallback(
@@ -674,6 +751,39 @@ export function WorkbenchProvider({
   const markAllWhatsNewRead = useCallback(() => {
     setWhatsNewRead(new Set(whatsNew.map((w) => w.id)));
   }, [whatsNew]);
+
+  // 인앱 알림 읽음 처리 — 낙관적 갱신 후 server action. 실패 시 롤백.
+  const markNotificationRead = useCallback((id: string) => {
+    let prev: AppNotification[] | null = null;
+    setNotifications((cur) => {
+      prev = cur;
+      return cur.map((n) => (n.id === id ? { ...n, read: true } : n));
+    });
+    markNotificationReadAction(id)
+      .then((res) => {
+        if (!res.ok && prev) setNotifications(prev);
+      })
+      .catch((err) => {
+        console.error("markNotificationReadAction failed", err);
+        if (prev) setNotifications(prev);
+      });
+  }, []);
+
+  const markAllNotificationsRead = useCallback(() => {
+    let prev: AppNotification[] | null = null;
+    setNotifications((cur) => {
+      prev = cur;
+      return cur.map((n) => (n.read ? n : { ...n, read: true }));
+    });
+    markAllNotificationsReadAction()
+      .then((res) => {
+        if (!res.ok && prev) setNotifications(prev);
+      })
+      .catch((err) => {
+        console.error("markAllNotificationsReadAction failed", err);
+        if (prev) setNotifications(prev);
+      });
+  }, []);
 
   const completeStep = useCallback((taskId: string) => {
     setOnboardingDone((prev) => {
@@ -1094,6 +1204,7 @@ export function WorkbenchProvider({
       verifications,
       mustRead,
       whatsNew,
+      notifications,
       compliance,
       attachments,
       bodyOverrides,
@@ -1119,6 +1230,7 @@ export function WorkbenchProvider({
       setRole,
       can,
       setNodeStatus,
+      setRequiredApprover,
       rejectDocument,
       addComment,
       resolveComment,
@@ -1131,6 +1243,8 @@ export function WorkbenchProvider({
       toggleFavorite,
       markWhatsNewRead,
       markAllWhatsNewRead,
+      markNotificationRead,
+      markAllNotificationsRead,
       completeStep,
       recordQuizAnswer,
       attachPdf,
@@ -1169,6 +1283,7 @@ export function WorkbenchProvider({
       verifications,
       mustRead,
       whatsNew,
+      notifications,
       compliance,
       attachments,
       bodyOverrides,
@@ -1184,6 +1299,7 @@ export function WorkbenchProvider({
       openSearch,
       can,
       setNodeStatus,
+      setRequiredApprover,
       rejectDocument,
       addComment,
       resolveComment,
@@ -1195,6 +1311,8 @@ export function WorkbenchProvider({
       toggleFavorite,
       markWhatsNewRead,
       markAllWhatsNewRead,
+      markNotificationRead,
+      markAllNotificationsRead,
       completeStep,
       recordQuizAnswer,
       attachPdf,

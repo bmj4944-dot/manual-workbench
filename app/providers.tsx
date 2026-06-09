@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { WorkbenchProvider, type CurrentUser } from "@/lib/workbench-context";
 import { ToastViewport } from "@/components/shell/toast-viewport";
 import type {
+  AppNotification,
   Attachment,
   Case,
   Comment,
@@ -30,6 +31,7 @@ export type ProviderProps = {
   initialVerifications?: Record<string, Verification>;
   initialMustRead?: ReadonlySet<string>;
   initialWhatsNew?: WhatsNewItem[];
+  initialNotifications?: AppNotification[];
   initialCompliance?: Record<string, ReadonlySet<string>>;
   initialComments?: Record<string, Comment[]>;
   initialHistory?: Record<string, Version[]>;

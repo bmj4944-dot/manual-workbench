@@ -14,6 +14,8 @@ import {
   fetchWhatsNew,
 } from "@/lib/data/insights";
 import { fetchComments } from "@/lib/data/comments";
+import { fetchNotifications } from "@/lib/data/notifications";
+import { sweepOverdueReviews } from "@/lib/actions/_sla";
 import { fetchHistory } from "@/lib/data/history";
 import { fetchAckedIds, fetchFavorites } from "@/lib/data/user-state";
 import { fetchAttachments } from "@/lib/data/attachments";
@@ -31,6 +33,9 @@ export async function WorkbenchShell({ children }: { children: ReactNode }) {
   };
 
   if (currentUser) {
+    // 기한 초과 검토 알림을 멱등 sweep (cron 없음). fetchNotifications 가
+    // 갓 만들어진 알림을 같은 로드에서 집어가도록 먼저 await.
+    await sweepOverdueReviews(currentUser.id);
     try {
       const [
         tree,
@@ -48,6 +53,7 @@ export async function WorkbenchShell({ children }: { children: ReactNode }) {
         favorites,
         ackedIds,
         attachments,
+        notifications,
       ] = await Promise.all([
         fetchDocumentTree(),
         fetchDocumentContent(),
@@ -64,6 +70,7 @@ export async function WorkbenchShell({ children }: { children: ReactNode }) {
         fetchFavorites(),
         fetchAckedIds(),
         fetchAttachments(),
+        fetchNotifications(),
       ]);
       initial.initialTree = tree;
       initial.initialContent = content;
@@ -80,6 +87,7 @@ export async function WorkbenchShell({ children }: { children: ReactNode }) {
       initial.initialFavorites = favorites;
       initial.initialAcked = new Set(ackedIds);
       initial.initialAttachments = attachments;
+      initial.initialNotifications = notifications;
     } catch (error) {
       console.error(
         "[workbench-shell] failed to fetch workbench data from Supabase:",

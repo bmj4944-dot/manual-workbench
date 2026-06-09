@@ -8,7 +8,8 @@ import {
   requireProfile,
 } from "./_helpers";
 import { logAction } from "./_audit";
-import type { NodeStatus } from "@/lib/types";
+import { notify } from "./_notify";
+import { REVIEW_SLA_DAYS, type NodeStatus } from "@/lib/types";
 
 const STATUS_TO_PERMISSION: Record<NodeStatus, string> = {
   draft:     "edit",
@@ -42,10 +43,13 @@ export async function rejectDocumentAction(
 
   const { data: cur } = await supabase
     .from("documents")
-    .select("status")
+    .select("status, label, created_by")
     .eq("id", documentId)
     .maybeSingle();
-  const currentStatus = (cur as { status?: NodeStatus | null } | null)?.status;
+  const curRow = cur as
+    | { status?: NodeStatus | null; label?: string | null; created_by?: string | null }
+    | null;
+  const currentStatus = curRow?.status;
   if (currentStatus !== "review") {
     return fail("검토중인 문서만 거부할 수 있습니다.");
   }
@@ -72,6 +76,16 @@ export async function rejectDocumentAction(
     metadata: { reason: trimmed },
   });
 
+  // 작성자에게 거부 알림 (본인이 본인 문서를 거부하면 notify 가 skip)
+  await notify({
+    recipientId: curRow?.created_by ?? null,
+    actorId: profileId,
+    type: "workflow.reject",
+    title: `'${curRow?.label ?? "문서"}' 검토가 거부되었습니다`,
+    body: trimmed,
+    docId: documentId,
+  });
+
   revalidatePath("/");
   return { ok: true };
 }
@@ -84,9 +98,33 @@ export async function rejectDocumentAction(
 export async function setNodeStatusAction(
   documentId: string,
   status: NodeStatus,
-) {
+): Promise<ActionResult> {
   const { supabase, profileId, role } = await requireProfile();
   requirePermission(role, STATUS_TO_PERMISSION[status]);
+
+  // 작성자 알림 + 승인자 게이트용 메타.
+  const { data: docRow } = await supabase
+    .from("documents")
+    .select("label, created_by, required_approver_id")
+    .eq("id", documentId)
+    .maybeSingle();
+  const docMeta = docRow as
+    | {
+        label?: string | null;
+        created_by?: string | null;
+        required_approver_id?: string | null;
+      }
+    | null;
+
+  // 승인자 게이트: review → approved 는 지정 승인자만(있을 때). NULL 이면
+  // approve 권한자 누구나 (위 requirePermission 으로 이미 통과).
+  if (
+    status === "approved" &&
+    docMeta?.required_approver_id &&
+    docMeta.required_approver_id !== profileId
+  ) {
+    return fail("이 문서는 지정된 승인자만 승인할 수 있습니다.");
+  }
 
   // Snapshot current body for the version row.
   const { data: contentRow } = await supabase
@@ -96,10 +134,21 @@ export async function setNodeStatusAction(
     .maybeSingle();
   const currentBody = (contentRow as { body?: string } | null)?.body ?? "";
 
-  // Update status.
+  // Update status. review 진입 시 SLA 기한 설정 + overdue 플래그 리셋,
+  // review 를 벗어나면 기한/플래그를 비운다(재검토는 새 SLA 로 시작).
+  const statusPatch: Record<string, unknown> = { status };
+  if (status === "review") {
+    statusPatch.review_deadline = new Date(
+      Date.now() + REVIEW_SLA_DAYS * 86_400_000,
+    ).toISOString();
+    statusPatch.overdue_notified = false;
+  } else {
+    statusPatch.review_deadline = null;
+    statusPatch.overdue_notified = false;
+  }
   const { error: updErr } = await supabase
     .from("documents")
-    .update({ status })
+    .update(statusPatch)
     .eq("id", documentId);
   if (updErr) throw updErr;
 
@@ -138,5 +187,78 @@ export async function setNodeStatusAction(
     metadata: { status },
   });
 
+  // 승인/공개 시 작성자에게 알림 (본인 전이면 notify 가 skip)
+  if (status === "approved" || status === "published") {
+    await notify({
+      recipientId: docMeta?.created_by ?? null,
+      actorId: profileId,
+      type: `workflow.${status}`,
+      title: `'${docMeta?.label ?? "문서"}'${
+        status === "approved" ? " 가 승인되었습니다" : " 가 공개되었습니다"
+      }`,
+      docId: documentId,
+    });
+  }
+
+  // review 진입 시 지정 승인자에게 검토 요청 알림 (지정돼 있을 때만)
+  if (status === "review" && docMeta?.required_approver_id) {
+    await notify({
+      recipientId: docMeta.required_approver_id,
+      actorId: profileId,
+      type: "workflow.review_request",
+      title: `'${docMeta?.label ?? "문서"}' 검토·승인 요청`,
+      docId: documentId,
+    });
+  }
+
   revalidatePath("/");
+  return { ok: true };
+}
+
+/**
+ * 문서의 지정 승인자(required_approver_id)를 설정/해제한다. approve 권한자
+ * (admin/reviewer)만 지정 가능. 승인자 후보 역시 approve 가능 역할이어야
+ * 실제로 승인할 수 있으므로 역할을 검증한다. null 을 주면 해제(누구나 승인).
+ */
+export async function setRequiredApproverAction(
+  documentId: string,
+  approverId: string | null,
+): Promise<ActionResult> {
+  const { supabase, profileId, role } = await requireProfile();
+  requirePermission(role, "approve");
+
+  if (approverId) {
+    const { data: cand } = await supabase
+      .from("profiles")
+      .select("role, is_active")
+      .eq("id", approverId)
+      .maybeSingle();
+    const candRow = cand as
+      | { role?: string | null; is_active?: boolean | null }
+      | null;
+    if (!candRow) return fail("승인자 후보를 찾을 수 없습니다.");
+    if (candRow.is_active === false) {
+      return fail("비활성 계정은 승인자로 지정할 수 없습니다.");
+    }
+    if (candRow.role !== "admin" && candRow.role !== "reviewer") {
+      return fail("승인 권한이 있는 사용자(관리자·검토자)만 지정할 수 있습니다.");
+    }
+  }
+
+  const { error: updErr } = await supabase
+    .from("documents")
+    .update({ required_approver_id: approverId })
+    .eq("id", documentId);
+  if (updErr) throw updErr;
+
+  await logAction({
+    actorId: profileId,
+    action: "workflow.set_approver",
+    targetType: "document",
+    targetId: documentId,
+    metadata: { approverId },
+  });
+
+  revalidatePath("/");
+  return { ok: true };
 }

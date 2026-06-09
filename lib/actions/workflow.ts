@@ -9,7 +9,17 @@ import {
 } from "./_helpers";
 import { logAction } from "./_audit";
 import { notify } from "./_notify";
-import { REVIEW_SLA_DAYS, type NodeStatus } from "@/lib/types";
+import {
+  REVIEW_SLA_DAYS,
+  type DocSensitivity,
+  type NodeStatus,
+} from "@/lib/types";
+
+const SENSITIVITY_VALUES: DocSensitivity[] = [
+  "general",
+  "confidential",
+  "restricted",
+];
 
 const STATUS_TO_PERMISSION: Record<NodeStatus, string> = {
   draft:     "edit",
@@ -257,6 +267,40 @@ export async function setRequiredApproverAction(
     targetType: "document",
     targetId: documentId,
     metadata: { approverId },
+  });
+
+  revalidatePath("/");
+  return { ok: true };
+}
+
+/**
+ * 문서 민감도(general/confidential/restricted)를 설정한다. 그룹 6.
+ * approve 권한자(admin/reviewer)만 분류 가능. 민감도는 can_view_document 의
+ * 게이트로 작동해 열람 가능 역할을 제한한다.
+ */
+export async function setDocumentSensitivityAction(
+  documentId: string,
+  level: DocSensitivity,
+): Promise<ActionResult> {
+  const { supabase, profileId, role } = await requireProfile();
+  requirePermission(role, "approve");
+
+  if (!SENSITIVITY_VALUES.includes(level)) {
+    return fail("알 수 없는 민감도 레벨입니다.");
+  }
+
+  const { error: updErr } = await supabase
+    .from("documents")
+    .update({ sensitivity: level })
+    .eq("id", documentId);
+  if (updErr) throw updErr;
+
+  await logAction({
+    actorId: profileId,
+    action: "document.set_sensitivity",
+    targetType: "document",
+    targetId: documentId,
+    metadata: { level },
   });
 
   revalidatePath("/");

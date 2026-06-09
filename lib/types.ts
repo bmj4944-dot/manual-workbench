@@ -3,6 +3,9 @@ export type NodeStatus = "draft" | "review" | "approved" | "published";
 /** 검토(review) 진입 시 부여되는 SLA 기한(일). 그룹 4-③. */
 export const REVIEW_SLA_DAYS = 3;
 
+/** 문서 민감도 레벨. 그룹 6 — general 외엔 열람 역할이 제한됨. */
+export type DocSensitivity = "general" | "confidential" | "restricted";
+
 export type TreeNode = {
   id: string;
   label: string;
@@ -14,6 +17,7 @@ export type TreeNode = {
   hasComments?: number;
   requiredApproverId?: string | null; // 지정 승인자 (그룹 4-②); null/미설정이면 누구나
   reviewDeadline?: string | null; // 검토 SLA 기한 ISO (그룹 4-③); review 상태에서만 의미
+  sensitivity?: DocSensitivity; // 민감도 (그룹 6); 미설정이면 general
   children?: TreeNode[];
 };
 

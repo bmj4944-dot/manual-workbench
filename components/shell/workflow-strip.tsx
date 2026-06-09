@@ -20,6 +20,7 @@ export function WorkflowStrip() {
     locale,
     setNodeStatus,
     setRequiredApprover,
+    setDocumentSensitivity,
     rejectDocument,
     can,
     members,
@@ -80,6 +81,18 @@ export function WorkflowStrip() {
       : null;
   const slaOverdue = slaDaysLeft !== null && slaDaysLeft < 0;
 
+  // 민감도(그룹 6) — item 에만. 분류는 approve 권한자. 배지는 general 외에만.
+  const sensitivity = node.sensitivity ?? "general";
+  const SENS_KO: Record<string, string> = {
+    general: "일반",
+    confidential: "기밀",
+    restricted: "제한",
+  };
+  const SENS_COLOR: Record<string, string> = {
+    confidential: "#b8860b",
+    restricted: "#c0392b",
+  };
+
   const submitReject = async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -120,6 +133,68 @@ export function WorkflowStrip() {
         })}
 
         <div className="actions">
+          {isItem && sensitivity !== "general" && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: 4,
+                marginRight: 4,
+                color: SENS_COLOR[sensitivity],
+                background: `${SENS_COLOR[sensitivity]}1a`,
+                border: `1px solid ${SENS_COLOR[sensitivity]}`,
+              }}
+              title={
+                sensitivity === "restricted"
+                  ? "관리자만 열람 가능"
+                  : "관리자·검토자만 열람 가능"
+              }
+            >
+              🔒 {SENS_KO[sensitivity]}
+            </span>
+          )}
+          {canDesignate && (
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                fontSize: 11.5,
+                color: "var(--ink-2)",
+                marginRight: 4,
+              }}
+              title="민감도를 올리면 열람 가능한 역할이 제한됩니다"
+            >
+              <span style={{ color: "var(--ink-3)" }}>
+                {locale === "ko" ? "민감도" : "Sensitivity"}
+              </span>
+              <select
+                value={sensitivity}
+                onChange={(e) =>
+                  setDocumentSensitivity(
+                    activeId,
+                    e.target.value as "general" | "confidential" | "restricted",
+                  )
+                }
+                style={{
+                  fontSize: 11.5,
+                  padding: "3px 6px",
+                  borderRadius: 4,
+                  border: "1px solid var(--line)",
+                  background: "var(--surface)",
+                  color: "var(--ink)",
+                }}
+              >
+                <option value="general">일반 (전원)</option>
+                <option value="confidential">기밀 (검토자·관리자)</option>
+                <option value="restricted">제한 (관리자)</option>
+              </select>
+            </label>
+          )}
           {slaDaysLeft !== null && (
             <span
               style={{

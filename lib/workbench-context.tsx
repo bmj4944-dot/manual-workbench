@@ -40,6 +40,7 @@ import {
   rejectDocumentAction,
   setNodeStatusAction,
   setRequiredApproverAction,
+  setDocumentSensitivityAction,
 } from "./actions/workflow";
 import {
   markAllNotificationsReadAction,
@@ -68,6 +69,7 @@ import type {
   Case,
   Comment,
   DocContent,
+  DocSensitivity,
   FaqItem,
   Locale,
   NodeStatus,
@@ -140,6 +142,7 @@ type WorkbenchState = {
   can: (action: string) => boolean;
   setNodeStatus: (id: string, status: NodeStatus) => boolean;
   setRequiredApprover: (id: string, approverId: string | null) => void;
+  setDocumentSensitivity: (id: string, level: DocSensitivity) => void;
   rejectDocument: (id: string, reason: string) => Promise<void>;
   addComment: (nodeId: string, body: string, parentId?: string | null) => void;
   resolveComment: (nodeId: string, commentId: string) => void;
@@ -528,6 +531,41 @@ export function WorkbenchProvider({
         .catch((err) => {
           console.error("setRequiredApproverAction failed", err);
           toast.error(toastErrorMessage(err, "승인자 지정에 실패했습니다."));
+          rollback();
+        });
+    },
+    [role],
+  );
+
+  // 문서 민감도 분류(그룹 6) — 낙관적 트리 갱신 후 server action, 실패 시 롤백.
+  const setDocumentSensitivity = useCallback(
+    (id: string, level: DocSensitivity) => {
+      if (!ROLE_PERMISSIONS[role].includes("approve")) {
+        toast.error("민감도 설정은 관리자·검토자만 할 수 있습니다.");
+        return;
+      }
+      let prev: DocSensitivity | undefined;
+      setTree((cur) =>
+        mutate(cur, id, (n) => {
+          prev = n.sensitivity;
+          return { ...n, sensitivity: level };
+        }),
+      );
+      const rollback = () =>
+        setTree((cur) =>
+          mutate(cur, id, (n) => ({ ...n, sensitivity: prev })),
+        );
+      setDocumentSensitivityAction(id, level)
+        .then((res) => {
+          if (res.ok) toast.success("민감도를 변경했습니다.");
+          else {
+            toast.error(res.reason);
+            rollback();
+          }
+        })
+        .catch((err) => {
+          console.error("setDocumentSensitivityAction failed", err);
+          toast.error(toastErrorMessage(err, "민감도 설정에 실패했습니다."));
           rollback();
         });
     },
@@ -1231,6 +1269,7 @@ export function WorkbenchProvider({
       can,
       setNodeStatus,
       setRequiredApprover,
+      setDocumentSensitivity,
       rejectDocument,
       addComment,
       resolveComment,
@@ -1300,6 +1339,7 @@ export function WorkbenchProvider({
       can,
       setNodeStatus,
       setRequiredApprover,
+      setDocumentSensitivity,
       rejectDocument,
       addComment,
       resolveComment,

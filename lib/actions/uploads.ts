@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requirePermission, requireProfile } from "./_helpers";
+import { rateLimitThrow } from "./_rate-limit";
 
 // ─── Limits and mime whitelists ──────────────────────────────────────
 // Vercel function payload cap (4.5MB) is the reason this whole module
@@ -63,8 +64,11 @@ export type SignedUploadGrant = {
 export async function createUploadSignedUrlAction(
   req: SignedUploadRequest,
 ): Promise<SignedUploadGrant> {
-  const { supabase, role } = await requireProfile();
+  const { supabase, role, profileId } = await requireProfile();
   requirePermission(role, "edit");
+
+  // 업로드 URL 발급 폭주 방지 — 스토리지 남용 차단 (그룹 5-B).
+  await rateLimitThrow(profileId, "upload.sign", 30, 60_000);
 
   if (req.kind === "pdf") {
     if (req.fileSize > MAX_PDF_BYTES) {

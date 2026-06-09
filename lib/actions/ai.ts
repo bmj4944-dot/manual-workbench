@@ -2,7 +2,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { requireProfile } from "./_helpers";
-import { logAction } from "./_audit";
+import { rateLimitFail } from "./_rate-limit";
 
 const MODEL = "claude-haiku-4-5-20251001"; // 빠르고 저렴. 요약/Q&A엔 충분
 const MAX_TOKENS = 800;
@@ -12,25 +12,9 @@ const MAX_MESSAGES = 20;
 const MAX_TOTAL_CHARS = 12_000; // messages content 합
 const MAX_SYSTEM_CHARS = 4_000; // 호출자가 넘기는 system 길이
 
-// AI 전용 rate limit — 프로필별. ⚠️ 인메모리라 serverless 인스턴스별로
-// 독립이다(완벽한 글로벌 제한 아님). 분산/영구 rate limiting 은 5-B 과제.
-const RATE_MAX = 20; // 윈도당 허용 호출 수
-const RATE_WINDOW_MS = 60_000;
-const callLog = new Map<string, number[]>();
-
-function rateLimited(profileId: string): boolean {
-  const now = Date.now();
-  const hits = (callLog.get(profileId) ?? []).filter(
-    (t) => now - t < RATE_WINDOW_MS,
-  );
-  if (hits.length >= RATE_MAX) {
-    callLog.set(profileId, hits);
-    return true;
-  }
-  hits.push(now);
-  callLog.set(profileId, hits);
-  return false;
-}
+// AI 전용 rate limit — 공용 헬퍼 사용 (그룹 5-B 에서 추출).
+const AI_RATE_MAX = 20;
+const AI_RATE_WINDOW_MS = 60_000;
 
 /**
  * 모든 Claude 호출의 단일 진입점에 부착하는 안전 프리앰블. system 의 맨 앞에
@@ -97,19 +81,14 @@ export async function askClaudeAction(input: AskInput): Promise<AskResult> {
       ? input.system.slice(0, MAX_SYSTEM_CHARS)
       : "";
 
-  // 3) Rate limit — AI 전용.
-  if (rateLimited(profileId)) {
-    await logAction({
-      actorId: profileId,
-      action: "ai.ask",
-      ok: false,
-      metadata: { reason: "rate_limited" },
-    });
-    return {
-      ok: false,
-      reason: "AI 요청이 너무 잦습니다. 잠시 후 다시 시도해주세요.",
-    };
-  }
+  // 3) Rate limit — AI 전용 (공용 헬퍼; 초과 시 audit 기록 + fail 반환).
+  const limited = await rateLimitFail(
+    profileId,
+    "ai.ask",
+    AI_RATE_MAX,
+    AI_RATE_WINDOW_MS,
+  );
+  if (limited) return limited;
 
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) {

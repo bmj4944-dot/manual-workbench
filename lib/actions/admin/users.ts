@@ -9,6 +9,7 @@ import {
   requireProfile,
 } from "../_helpers";
 import { logAction } from "../_audit";
+import { rateLimitFail } from "../_rate-limit";
 import type { Role } from "@/lib/types";
 
 const ROLE_VALUES: Role[] = ["admin", "reviewer", "editor", "viewer"];
@@ -100,6 +101,10 @@ export async function inviteUserAction(
 ): Promise<ActionResult> {
   const { profileId: selfId, role: selfRole } = await requireProfile();
   requireAdmin(selfRole);
+
+  // 초대 메일 폭주 방지 (그룹 5-B).
+  const limited = await rateLimitFail(selfId, "user.invite", 10, 60_000);
+  if (limited) return limited;
 
   const cleaned = email.trim().toLowerCase();
   if (!EMAIL_RE.test(cleaned)) {

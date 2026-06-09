@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "./_helpers";
+import { rateLimitThrow } from "./_rate-limit";
 
 export async function addCommentAction(
   documentId: string,
@@ -11,6 +12,9 @@ export async function addCommentAction(
   const trimmed = body.trim();
   if (!trimmed) throw new Error("empty comment");
   const { supabase, profileId } = await requireProfile();
+
+  // 댓글 스팸 방지 (그룹 5-B).
+  await rateLimitThrow(profileId, "comment.add", 30, 60_000);
 
   // Single-level threading: if the requested parent itself has a parent,
   // flatten the reply onto the original root. Keeps the UI a strict 2-level

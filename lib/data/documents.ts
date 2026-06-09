@@ -12,6 +12,8 @@ type DocumentRow = {
   sort_order: number;
   badge: string | null;
   is_open: boolean;
+  required_approver_id: string | null;
+  review_deadline: string | null;
 };
 
 export async function fetchDocumentTree(): Promise<TreeNode[]> {
@@ -20,7 +22,9 @@ export async function fetchDocumentTree(): Promise<TreeNode[]> {
   const [docsResult, commentsResult] = await Promise.all([
     supabase
       .from("documents")
-      .select("id, parent_id, label, label_en, type, status, sort_order, badge, is_open")
+      .select(
+        "id, parent_id, label, label_en, type, status, sort_order, badge, is_open, required_approver_id, review_deadline",
+      )
       .order("sort_order"),
     supabase.from("comments").select("document_id"),
   ]);
@@ -45,6 +49,8 @@ export async function fetchDocumentTree(): Promise<TreeNode[]> {
       open: r.is_open || undefined,
       badge: r.badge === "PDF" ? "PDF" : undefined,
       hasComments: commentCount.get(r.id) || undefined,
+      requiredApproverId: r.required_approver_id,
+      reviewDeadline: r.review_deadline,
       children: r.type === "item" ? undefined : [],
     });
   }

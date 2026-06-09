@@ -1,5 +1,8 @@
 export type NodeStatus = "draft" | "review" | "approved" | "published";
 
+/** 검토(review) 진입 시 부여되는 SLA 기한(일). 그룹 4-③. */
+export const REVIEW_SLA_DAYS = 3;
+
 export type TreeNode = {
   id: string;
   label: string;
@@ -9,6 +12,8 @@ export type TreeNode = {
   open?: boolean;
   badge?: "PDF";
   hasComments?: number;
+  requiredApproverId?: string | null; // 지정 승인자 (그룹 4-②); null/미설정이면 누구나
+  reviewDeadline?: string | null; // 검토 SLA 기한 ISO (그룹 4-③); review 상태에서만 의미
   children?: TreeNode[];
 };
 
@@ -121,6 +126,21 @@ export type WhatsNewItem = {
   when: string;
   who: string;
   isNew: boolean;
+};
+
+/**
+ * 인앱 알림 한 건. 워크플로 전이(거부/승인/공개)의 결과가 당사자에게 전달된다.
+ * 클라이언트(알림 벨)에서 직접 쓰므로 types.ts 에 둔다.
+ */
+export type AppNotification = {
+  id: string;
+  type: string; // workflow.reject | workflow.approved | workflow.published
+  title: string;
+  body: string | null;
+  docId: string | null; // 클릭 시 이동할 문서
+  actorName: string | null; // 행위자 이름 (조인)
+  read: boolean;
+  createdAt: string; // ISO
 };
 
 export type OnboardingTask = {

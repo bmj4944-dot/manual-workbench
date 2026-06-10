@@ -12,6 +12,7 @@ import type {
   DocContent,
   OnboardingTask,
   PageStats,
+  Team,
   TeamMember,
   TreeNode,
   Verification,
@@ -27,6 +28,7 @@ export type ProviderProps = {
   initialCases?: Case[];
   initialOnboardingTasks?: OnboardingTask[];
   initialMembers?: TeamMember[];
+  initialTeams?: Team[];
   initialPageStats?: Record<string, PageStats>;
   initialVerifications?: Record<string, Verification>;
   initialMustRead?: ReadonlySet<string>;

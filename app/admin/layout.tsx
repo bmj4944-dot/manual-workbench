@@ -69,6 +69,16 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             사용자
           </Link>
           <Link
+            href="/admin/teams"
+            style={{
+              fontSize: 12.5,
+              color: "var(--ink-2)",
+              textDecoration: "none",
+            }}
+          >
+            팀
+          </Link>
+          <Link
             href="/admin/audit"
             style={{
               fontSize: 12.5,

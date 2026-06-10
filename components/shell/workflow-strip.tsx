@@ -21,9 +21,11 @@ export function WorkflowStrip() {
     setNodeStatus,
     setRequiredApprover,
     setDocumentSensitivity,
+    setDocumentVisibility,
     rejectDocument,
     can,
     members,
+    teams,
   } = useWorkbench();
   const node = findNode(tree, activeId);
   const [rejecting, setRejecting] = useState(false);
@@ -92,6 +94,17 @@ export function WorkflowStrip() {
     confidential: "#b8860b",
     restricted: "#c0392b",
   };
+
+  // 가시성(A) — item 에만. 설정은 approve 권한자. 배지는 all 외에만.
+  const visibility = node.visibility ?? "all";
+  const ownerTeamId = node.ownerTeamId ?? "";
+  const ownerTeam = teams.find((t) => t.id === ownerTeamId) ?? null;
+  const VIS_KO: Record<string, string> = {
+    all: "전체 공개",
+    team: "팀 공개",
+    private: "비공개",
+  };
+  const VIS_COLOR = "#2563eb";
 
   const submitReject = async () => {
     if (submitting) return;
@@ -193,6 +206,99 @@ export function WorkflowStrip() {
                 <option value="confidential">기밀 (검토자·관리자)</option>
                 <option value="restricted">제한 (관리자)</option>
               </select>
+            </label>
+          )}
+          {isItem && visibility !== "all" && (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 700,
+                padding: "2px 8px",
+                borderRadius: 4,
+                marginRight: 4,
+                color: VIS_COLOR,
+                background: `${VIS_COLOR}1a`,
+                border: `1px solid ${VIS_COLOR}`,
+              }}
+              title={
+                visibility === "team"
+                  ? `${ownerTeam?.name ?? "팀"} 멤버 + 관리자·검토자만 열람`
+                  : "작성자 + 관리자·검토자만 열람"
+              }
+            >
+              🔒 {VIS_KO[visibility]}
+              {visibility === "team" && ownerTeam ? ` · ${ownerTeam.name}` : ""}
+            </span>
+          )}
+          {canDesignate && (
+            <label
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                fontSize: 11.5,
+                color: "var(--ink-2)",
+                marginRight: 4,
+              }}
+              title="열람 가능한 범위를 제한합니다 (편집 권한은 별도)"
+            >
+              <span style={{ color: "var(--ink-3)" }}>
+                {locale === "ko" ? "가시성" : "Visibility"}
+              </span>
+              <select
+                value={visibility}
+                onChange={(e) => {
+                  const v = e.target.value as "all" | "team" | "private";
+                  if (v === "team") {
+                    setDocumentVisibility(
+                      activeId,
+                      "team",
+                      ownerTeamId || teams[0]?.id || null,
+                    );
+                  } else {
+                    setDocumentVisibility(activeId, v);
+                  }
+                }}
+                style={{
+                  fontSize: 11.5,
+                  padding: "3px 6px",
+                  borderRadius: 4,
+                  border: "1px solid var(--line)",
+                  background: "var(--surface)",
+                  color: "var(--ink)",
+                }}
+              >
+                <option value="all">전체 (전원)</option>
+                <option value="team">팀 공개</option>
+                <option value="private">비공개 (작성자)</option>
+              </select>
+              {visibility === "team" && (
+                <select
+                  value={ownerTeamId}
+                  onChange={(e) =>
+                    setDocumentVisibility(activeId, "team", e.target.value || null)
+                  }
+                  style={{
+                    fontSize: 11.5,
+                    padding: "3px 6px",
+                    borderRadius: 4,
+                    border: "1px solid var(--line)",
+                    background: "var(--surface)",
+                    color: "var(--ink)",
+                    maxWidth: 140,
+                  }}
+                >
+                  <option value="">{teams.length ? "팀 선택…" : "팀 없음"}</option>
+                  {teams.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </label>
           )}
           {slaDaysLeft !== null && (

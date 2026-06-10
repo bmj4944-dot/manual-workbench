@@ -207,6 +207,31 @@ documents · content · cases · onboarding · members · insights(page_stats/ve
   - `components/shell/workflow-strip.tsx` — `review` 상태 + `review` 권한일 때 "거부" 버튼 노출. 클릭 시 인라인 사유 입력 패널(textarea + Cmd+Enter 제출 / Esc 취소 / 빈 사유 차단). 제출 중 disabled
   - 정책 효과: 상담사(viewer)는 published 만 보임. 편집자(editor)는 본인 작성한 진행 중 + 전체 published. 리뷰어/관리자는 모두 보임 — RLS 가 1차, server action 의 권한 체크가 2차
 
+### 2026-05-26 이후 보안 그룹 시리즈 (커밋 기준 — 상세는 git log/PR 참조)
+- **그룹 4 — 승인 워크플로 강화** (마이그 0026 notifications / 0027 required_approver / 0028 review_sla): 지정 승인자(`documents.required_approver_id`) + 인앱 알림(`_notify.ts`) + 검토 SLA 기한(`_sla.ts`, `sweepOverdueReviews` 멱등 sweep). workflow-strip 에 승인자 드롭다운 + SLA 배지(D-3/오늘마감/기한초과)
+- **그룹 5-A — 본문 저장형 XSS sanitize**: `saveBody` 경로에서 사용자 입력 HTML 의 `<script>` 등 차단
+- **그룹 5-B — server action rate limiting** (`_rate-limit.ts`): AI/초대 등 호출 횟수 제한
+- **그룹 5-C — AI 액션 가드**: AI 호출(요약/챗봇) 입력 검증·제한
+- **그룹 6 — 민감 매뉴얼 sensitivity** (마이그 0029): `doc_sensitivity` enum(general/confidential/restricted) + `documents.sensitivity` + `can_view_document` 민감도 게이트. `setDocumentSensitivityAction`(approve 권한) + workflow-strip 민감도 배지/드롭다운
+
+### 2026-06-10 추가
+- **A. 권한·조직 정교화 — 팀/부서(다대다) + 문서별 가시성(ACL)** (SPEC Part 2 / A 최상 우선순위)
+  - **마이그레이션 0030_teams_acl.sql 적용 필요**:
+    - `teams`(id/name/created_at/created_by) + `team_members`(team_id, profile_id PK; 다대다, FK cascade) 테이블
+    - `documents.visibility doc_visibility('all'|'team'|'private')` default 'all' + `owner_team_id`(FK on delete set null) + 부분 인덱스
+    - `can_view_document()` 재정의: 기존 민감도(그룹6)·상태/역할(그룹1) 게이트 유지 + **가시성 게이트 AND** 추가. all=전원, team=소유 팀 멤버, private=작성자, admin/reviewer 는 항상 열람, 컨테이너(chapter/section)는 트리 위해 항상 통과
+    - RLS: teams/team_members 는 authenticated SELECT 만 허용(쓰기 차단 → server action 이 service_role 로 수행). teams/team_members service_role + authenticated GRANT
+  - `lib/types.ts` — `DocVisibility`, `Team` 타입. `TreeNode`에 `visibility`/`ownerTeamId` 추가
+  - `lib/data/teams.ts` (신규) — `fetchTeams()`(멤버 수 집계, 드롭다운용) + `fetchTeamsWithMembers()`(admin client, 멤버 profile join)
+  - `lib/data/documents.ts` — SELECT/매핑에 `visibility`, `owner_team_id` 추가
+  - `lib/actions/teams.ts` (신규) — `createTeamAction`/`renameTeamAction`/`deleteTeamAction`/`addTeamMemberAction`/`removeTeamMemberAction`. 전부 `requireAdmin` + service_role + `logAction`(team.create/rename/delete/add_member/remove_member) + ActionResult. 멤버 추가는 upsert 멱등
+  - `lib/actions/workflow.ts` — `setDocumentVisibilityAction(docId, visibility, ownerTeamId?)`: approve 권한자, team 이면 ownerTeamId 필수(아니면 owner_team_id=null 정리), `document.set_visibility` audit
+  - `lib/workbench-context.tsx` — `teams` 상태 + `setDocumentVisibility` 낙관적 콜백(실패 롤백 + toast). `app/providers.tsx`/`app/workbench-shell.tsx` 에 `initialTeams`/`fetchTeams` 주입(Promise.all 합류)
+  - `components/shell/workflow-strip.tsx` — item 문서에 가시성 배지(🔒 팀공개·{팀명}/비공개) + canDesignate 에게 가시성 select(전체/팀/비공개) + team 선택 시 팀 select
+  - `app/admin/teams/page.tsx` + `teams-client.tsx` (신규) — 팀 CRUD(생성/이름변경/삭제) + 선택 팀 멤버 추가/제외(useTransition + toast). admin layout nav 에 "팀" 링크 추가
+  - **MVP 한계(명시)**: 가시성은 **열람 스코프만** 좁힘. 쓰기/편집 권한은 기존 역할 매트릭스 그대로(team-scoped edit 는 grants 테이블 필요 — 후속). private/team 도 admin·reviewer 는 항상 열람
+  - 빌드: `npx tsc --noEmit` 0 에러 + `next build` 통과. 0030 은 SQL Editor 수동 적용 대기
+
 ---
 
 ## 📋 해야 할 작업

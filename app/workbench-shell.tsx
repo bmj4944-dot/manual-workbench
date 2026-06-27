@@ -5,7 +5,10 @@ import { fetchDocumentTree } from "@/lib/data/documents";
 import { fetchDocumentContent } from "@/lib/data/content";
 import { fetchCases } from "@/lib/data/cases";
 import { fetchFaqs } from "@/lib/data/faqs";
-import { fetchOnboardingTasks } from "@/lib/data/onboarding";
+import {
+  fetchOnboardingProgress,
+  fetchOnboardingTasks,
+} from "@/lib/data/onboarding";
 import { fetchTeamMembers } from "@/lib/data/members";
 import { fetchTeams } from "@/lib/data/teams";
 import {
@@ -45,6 +48,7 @@ export async function WorkbenchShell({ children }: { children: ReactNode }) {
         cases,
         faqs,
         onboardingTasks,
+        onboardingProgress,
         members,
         teams,
         pageStats,
@@ -64,6 +68,7 @@ export async function WorkbenchShell({ children }: { children: ReactNode }) {
         fetchCases(),
         fetchFaqs(),
         fetchOnboardingTasks(),
+        fetchOnboardingProgress(),
         fetchTeamMembers(),
         fetchTeams(),
         fetchPageStats(),
@@ -83,6 +88,7 @@ export async function WorkbenchShell({ children }: { children: ReactNode }) {
       initial.initialCases = cases;
       initial.initialFaqs = faqs;
       initial.initialOnboardingTasks = onboardingTasks;
+      initial.initialOnboardingDone = new Set(onboardingProgress.doneIds);
       initial.initialMembers = members;
       initial.initialTeams = teams;
       initial.initialPageStats = pageStats;

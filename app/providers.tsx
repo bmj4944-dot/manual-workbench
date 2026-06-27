@@ -29,6 +29,7 @@ export type ProviderProps = {
   initialCases?: Case[];
   initialFaqs?: FaqItem[];
   initialOnboardingTasks?: OnboardingTask[];
+  initialOnboardingDone?: ReadonlySet<string>;
   initialMembers?: TeamMember[];
   initialTeams?: Team[];
   initialPageStats?: Record<string, PageStats>;

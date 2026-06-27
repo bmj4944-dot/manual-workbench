@@ -258,6 +258,7 @@ export function WorkbenchProvider({
   initialTree,
   initialContent,
   initialCases,
+  initialFaqs,
   initialOnboardingTasks,
   initialMembers,
   initialTeams,
@@ -278,6 +279,7 @@ export function WorkbenchProvider({
   initialTree?: TreeNode[];
   initialContent?: Record<string, DocContent>;
   initialCases?: Case[];
+  initialFaqs?: FaqItem[];
   initialOnboardingTasks?: OnboardingTask[];
   initialMembers?: TeamMember[];
   initialTeams?: Team[];
@@ -301,7 +303,7 @@ export function WorkbenchProvider({
   const [onboardingTasks] = useState<OnboardingTask[]>(
     initialOnboardingTasks ?? ONBOARDING_TASKS,
   );
-  const [faqs] = useState<FaqItem[]>(FAQ_LIST);
+  const [faqs] = useState<FaqItem[]>(initialFaqs ?? FAQ_LIST);
   const [members] = useState<TeamMember[]>(initialMembers ?? TEAM_MEMBERS);
   const [teams] = useState<Team[]>(initialTeams ?? []);
   const [currentUser] = useState<CurrentUser | null>(initialCurrentUser ?? null);

@@ -34,6 +34,7 @@ import {
   removeFavoriteAction,
 } from "./actions/favorites";
 import { acknowledgeMustReadAction } from "./actions/compliance";
+import { recordOnboardingProgressAction } from "./actions/onboarding";
 import { addTagAction, removeTagAction, saveBodyAction } from "./actions/content";
 import { toast, toastErrorMessage } from "./toast";
 import {
@@ -258,7 +259,9 @@ export function WorkbenchProvider({
   initialTree,
   initialContent,
   initialCases,
+  initialFaqs,
   initialOnboardingTasks,
+  initialOnboardingDone,
   initialMembers,
   initialTeams,
   initialPageStats,
@@ -278,7 +281,9 @@ export function WorkbenchProvider({
   initialTree?: TreeNode[];
   initialContent?: Record<string, DocContent>;
   initialCases?: Case[];
+  initialFaqs?: FaqItem[];
   initialOnboardingTasks?: OnboardingTask[];
+  initialOnboardingDone?: ReadonlySet<string>;
   initialMembers?: TeamMember[];
   initialTeams?: Team[];
   initialPageStats?: Record<string, PageStats>;
@@ -301,7 +306,7 @@ export function WorkbenchProvider({
   const [onboardingTasks] = useState<OnboardingTask[]>(
     initialOnboardingTasks ?? ONBOARDING_TASKS,
   );
-  const [faqs] = useState<FaqItem[]>(FAQ_LIST);
+  const [faqs] = useState<FaqItem[]>(initialFaqs ?? FAQ_LIST);
   const [members] = useState<TeamMember[]>(initialMembers ?? TEAM_MEMBERS);
   const [teams] = useState<Team[]>(initialTeams ?? []);
   const [currentUser] = useState<CurrentUser | null>(initialCurrentUser ?? null);
@@ -346,7 +351,9 @@ export function WorkbenchProvider({
     initialAttachments ?? {},
   );
   const [whatsNewRead, setWhatsNewRead] = useState<ReadonlySet<string>>(new Set());
-  const [onboardingDone, setOnboardingDone] = useState<ReadonlySet<string>>(new Set());
+  const [onboardingDone, setOnboardingDone] = useState<ReadonlySet<string>>(
+    initialOnboardingDone ?? new Set(),
+  );
   const [quizAnswers, setQuizAnswers] = useState<QuizAnswers>({});
 
   const toggleOpen = useCallback((id: string) => {
@@ -879,14 +886,38 @@ export function WorkbenchProvider({
       });
   }, []);
 
-  const completeStep = useCallback((taskId: string) => {
-    setOnboardingDone((prev) => {
-      const next = new Set(prev);
-      if (next.has(taskId)) next.delete(taskId);
-      else next.add(taskId);
-      return next;
-    });
-  }, []);
+  const completeStep = useCallback(
+    (taskId: string) => {
+      const willBeDone = !onboardingDone.has(taskId);
+      // 낙관적 토글
+      setOnboardingDone((prev) => {
+        const next = new Set(prev);
+        if (willBeDone) next.add(taskId);
+        else next.delete(taskId);
+        return next;
+      });
+      // 영속화 (fire-and-forget, 실패 시 롤백)
+      const rollback = () =>
+        setOnboardingDone((prev) => {
+          const next = new Set(prev);
+          if (willBeDone) next.delete(taskId);
+          else next.add(taskId);
+          return next;
+        });
+      recordOnboardingProgressAction(taskId, willBeDone)
+        .then((res) => {
+          if (!res.ok) {
+            toast.error(res.reason);
+            rollback();
+          }
+        })
+        .catch((err) => {
+          console.error("recordOnboardingProgressAction failed", err);
+          rollback();
+        });
+    },
+    [onboardingDone],
+  );
 
   const recordQuizAnswer = useCallback(
     (taskId: string, q: number, opt: number) => {

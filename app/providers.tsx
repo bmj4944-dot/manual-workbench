@@ -10,6 +10,7 @@ import type {
   Case,
   Comment,
   DocContent,
+  FaqItem,
   OnboardingTask,
   PageStats,
   Team,
@@ -26,7 +27,9 @@ export type ProviderProps = {
   initialTree?: TreeNode[];
   initialContent?: Record<string, DocContent>;
   initialCases?: Case[];
+  initialFaqs?: FaqItem[];
   initialOnboardingTasks?: OnboardingTask[];
+  initialOnboardingDone?: ReadonlySet<string>;
   initialMembers?: TeamMember[];
   initialTeams?: Team[];
   initialPageStats?: Record<string, PageStats>;

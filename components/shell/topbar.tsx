@@ -6,6 +6,7 @@ import {
   GraduationCap,
   HelpCircle,
   Layers,
+  LibraryBig,
   LogOut,
   MessagesSquare,
   Moon,
@@ -258,6 +259,16 @@ export function Topbar() {
                     {ROLE_LABELS[currentUser.role].ko}
                   </div>
                 </div>
+                {(currentUser.role === "admin" ||
+                  currentUser.role === "reviewer") && (
+                  <Link
+                    href="/manage/cases"
+                    className="mt-1 flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] text-ink-2 hover:bg-surface-2"
+                    onClick={() => setUserMenuOpen(false)}
+                  >
+                    <LibraryBig size={12} /> 콘텐츠 관리
+                  </Link>
+                )}
                 {currentUser.role === "admin" && (
                   <Link
                     href="/admin/users"

@@ -54,11 +54,17 @@ export function ConsoleHeader({
   noun,
   onNew,
   newLabel,
+  search,
+  onSearch,
+  searchPlaceholder,
 }: {
   count: number;
   noun: string;
   onNew: () => void;
   newLabel: string;
+  search?: string;
+  onSearch?: (v: string) => void;
+  searchPlaceholder?: string;
 }) {
   return (
     <div
@@ -73,6 +79,14 @@ export function ConsoleHeader({
         {noun} {count}개
       </h2>
       <span style={{ flex: 1 }} />
+      {onSearch ? (
+        <input
+          value={search ?? ""}
+          onChange={(e) => onSearch(e.target.value)}
+          placeholder={searchPlaceholder ?? "검색"}
+          style={{ ...fieldStyle, width: 200 }}
+        />
+      ) : null}
       <PrimaryButton onClick={onNew}>{newLabel}</PrimaryButton>
     </div>
   );

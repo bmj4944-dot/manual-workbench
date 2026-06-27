@@ -395,12 +395,6 @@ export const ONBOARDING_TASKS: OnboardingTask[] = [
   },
 ];
 
-export const SAMPLE_PDFS: Record<string, { title: string; pages: number }> = {
-  "ch2-1-4": { title: "보상 가이드라인 v1.4", pages: 8 },
-  "ch4-1-1": { title: "개인정보처리방침 v5.0", pages: 14 },
-  "ch4-1-2": { title: "서비스 이용약관 v2.3", pages: 12 },
-};
-
 export const SAMPLE_HISTORY: Record<string, Version[]> = {
   "ch1-2-1": [
     {

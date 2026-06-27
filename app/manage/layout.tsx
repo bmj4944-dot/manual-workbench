@@ -14,6 +14,7 @@ import type { Role } from "@/lib/types";
  * 달라 별도 세그먼트로 둔다.
  */
 const MANAGE_NAV: { href: string; label: string }[] = [
+  { href: "/manage", label: "홈" },
   { href: "/manage/cases", label: "사례" },
   { href: "/manage/faq", label: "FAQ" },
   { href: "/manage/onboarding", label: "온보딩" },

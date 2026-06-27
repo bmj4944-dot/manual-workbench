@@ -6,6 +6,20 @@ export const REVIEW_SLA_DAYS = 3;
 /** 문서 민감도 레벨. 그룹 6 — general 외엔 열람 역할이 제한됨. */
 export type DocSensitivity = "general" | "confidential" | "restricted";
 
+/**
+ * 문서 가시성 (A. 권한·조직 정교화). all=전원(기본/현행), team=소유 팀 멤버만,
+ * private=작성자만. admin/reviewer 는 가시성 무관 항상 열람. 열람 스코프만 좁힘
+ * (편집 권한은 기존 역할 매트릭스 그대로).
+ */
+export type DocVisibility = "all" | "team" | "private";
+
+/** 조직 팀/부서. (사용자 단위 타입은 TeamMember — 이름 충돌 주의) */
+export type Team = {
+  id: string;
+  name: string;
+  memberCount?: number;
+};
+
 export type TreeNode = {
   id: string;
   label: string;
@@ -18,6 +32,8 @@ export type TreeNode = {
   requiredApproverId?: string | null; // 지정 승인자 (그룹 4-②); null/미설정이면 누구나
   reviewDeadline?: string | null; // 검토 SLA 기한 ISO (그룹 4-③); review 상태에서만 의미
   sensitivity?: DocSensitivity; // 민감도 (그룹 6); 미설정이면 general
+  visibility?: DocVisibility; // 가시성 (A); 미설정이면 all
+  ownerTeamId?: string | null; // visibility='team' 일 때 소유 팀
   children?: TreeNode[];
 };
 

@@ -6,6 +6,7 @@ import { fetchDocumentContent } from "@/lib/data/content";
 import { fetchCases } from "@/lib/data/cases";
 import { fetchOnboardingTasks } from "@/lib/data/onboarding";
 import { fetchTeamMembers } from "@/lib/data/members";
+import { fetchTeams } from "@/lib/data/teams";
 import {
   fetchComplianceRecords,
   fetchMustReadIds,
@@ -43,6 +44,7 @@ export async function WorkbenchShell({ children }: { children: ReactNode }) {
         cases,
         onboardingTasks,
         members,
+        teams,
         pageStats,
         verifications,
         mustReadIds,
@@ -60,6 +62,7 @@ export async function WorkbenchShell({ children }: { children: ReactNode }) {
         fetchCases(),
         fetchOnboardingTasks(),
         fetchTeamMembers(),
+        fetchTeams(),
         fetchPageStats(),
         fetchVerifications(),
         fetchMustReadIds(),
@@ -77,6 +80,7 @@ export async function WorkbenchShell({ children }: { children: ReactNode }) {
       initial.initialCases = cases;
       initial.initialOnboardingTasks = onboardingTasks;
       initial.initialMembers = members;
+      initial.initialTeams = teams;
       initial.initialPageStats = pageStats;
       initial.initialVerifications = verifications;
       initial.initialMustRead = new Set(mustReadIds);

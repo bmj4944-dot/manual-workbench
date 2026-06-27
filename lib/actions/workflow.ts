@@ -12,6 +12,7 @@ import { notify } from "./_notify";
 import {
   REVIEW_SLA_DAYS,
   type DocSensitivity,
+  type DocVisibility,
   type NodeStatus,
 } from "@/lib/types";
 
@@ -20,6 +21,8 @@ const SENSITIVITY_VALUES: DocSensitivity[] = [
   "confidential",
   "restricted",
 ];
+
+const VISIBILITY_VALUES: DocVisibility[] = ["all", "team", "private"];
 
 const STATUS_TO_PERMISSION: Record<NodeStatus, string> = {
   draft:     "edit",
@@ -301,6 +304,49 @@ export async function setDocumentSensitivityAction(
     targetType: "document",
     targetId: documentId,
     metadata: { level },
+  });
+
+  revalidatePath("/");
+  return { ok: true };
+}
+
+/**
+ * 문서 가시성(all/team/private)을 설정한다. A. 권한·조직 정교화.
+ * approve 권한자(admin/reviewer)만 설정 가능. 가시성은 can_view_document 게이트로
+ * 작동해 열람 가능 범위를 좁힌다(편집 권한은 기존 역할 매트릭스 유지).
+ *   - team:    owner_team_id 필수 → 소유 팀 멤버 + admin/reviewer 만 열람
+ *   - private: 작성자 + admin/reviewer 만 열람
+ *   - all:     전원(현행). team/private 이 아니면 owner_team_id 는 null 로 정리.
+ */
+export async function setDocumentVisibilityAction(
+  documentId: string,
+  visibility: DocVisibility,
+  ownerTeamId?: string | null,
+): Promise<ActionResult> {
+  const { supabase, profileId, role } = await requireProfile();
+  requirePermission(role, "approve");
+
+  if (!VISIBILITY_VALUES.includes(visibility)) {
+    return fail("알 수 없는 가시성 값입니다.");
+  }
+
+  const team = visibility === "team" ? ownerTeamId ?? null : null;
+  if (visibility === "team" && !team) {
+    return fail("팀 공개는 소유 팀을 지정해야 합니다.");
+  }
+
+  const { error: updErr } = await supabase
+    .from("documents")
+    .update({ visibility, owner_team_id: team })
+    .eq("id", documentId);
+  if (updErr) throw updErr;
+
+  await logAction({
+    actorId: profileId,
+    action: "document.set_visibility",
+    targetType: "document",
+    targetId: documentId,
+    metadata: { visibility, ownerTeamId: team },
   });
 
   revalidatePath("/");

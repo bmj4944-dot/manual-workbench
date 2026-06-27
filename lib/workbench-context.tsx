@@ -41,6 +41,7 @@ import {
   setNodeStatusAction,
   setRequiredApproverAction,
   setDocumentSensitivityAction,
+  setDocumentVisibilityAction,
 } from "./actions/workflow";
 import {
   markAllNotificationsReadAction,
@@ -70,12 +71,14 @@ import type {
   Comment,
   DocContent,
   DocSensitivity,
+  DocVisibility,
   FaqItem,
   Locale,
   NodeStatus,
   OnboardingTask,
   PageStats,
   Role,
+  Team,
   TeamMember,
   TreeNode,
   Verification,
@@ -109,6 +112,7 @@ type WorkbenchState = {
   onboardingTasks: OnboardingTask[];
   faqs: FaqItem[];
   members: TeamMember[];
+  teams: Team[];
   currentUser: CurrentUser | null;
   pageStats: Record<string, PageStats>;
   verifications: Record<string, Verification>;
@@ -143,6 +147,11 @@ type WorkbenchState = {
   setNodeStatus: (id: string, status: NodeStatus) => boolean;
   setRequiredApprover: (id: string, approverId: string | null) => void;
   setDocumentSensitivity: (id: string, level: DocSensitivity) => void;
+  setDocumentVisibility: (
+    id: string,
+    visibility: DocVisibility,
+    ownerTeamId?: string | null,
+  ) => void;
   rejectDocument: (id: string, reason: string) => Promise<void>;
   addComment: (nodeId: string, body: string, parentId?: string | null) => void;
   resolveComment: (nodeId: string, commentId: string) => void;
@@ -251,6 +260,7 @@ export function WorkbenchProvider({
   initialCases,
   initialOnboardingTasks,
   initialMembers,
+  initialTeams,
   initialPageStats,
   initialVerifications,
   initialMustRead,
@@ -270,6 +280,7 @@ export function WorkbenchProvider({
   initialCases?: Case[];
   initialOnboardingTasks?: OnboardingTask[];
   initialMembers?: TeamMember[];
+  initialTeams?: Team[];
   initialPageStats?: Record<string, PageStats>;
   initialVerifications?: Record<string, Verification>;
   initialMustRead?: ReadonlySet<string>;
@@ -292,6 +303,7 @@ export function WorkbenchProvider({
   );
   const [faqs] = useState<FaqItem[]>(FAQ_LIST);
   const [members] = useState<TeamMember[]>(initialMembers ?? TEAM_MEMBERS);
+  const [teams] = useState<Team[]>(initialTeams ?? []);
   const [currentUser] = useState<CurrentUser | null>(initialCurrentUser ?? null);
   const [pageStats] = useState<Record<string, PageStats>>(
     initialPageStats ?? PAGE_STATS,
@@ -566,6 +578,50 @@ export function WorkbenchProvider({
         .catch((err) => {
           console.error("setDocumentSensitivityAction failed", err);
           toast.error(toastErrorMessage(err, "민감도 설정에 실패했습니다."));
+          rollback();
+        });
+    },
+    [role],
+  );
+
+  // 문서 가시성(A) — all/team/private. 낙관적 트리 갱신 후 server action, 실패 시 롤백.
+  const setDocumentVisibility = useCallback(
+    (id: string, visibility: DocVisibility, ownerTeamId?: string | null) => {
+      if (!ROLE_PERMISSIONS[role].includes("approve")) {
+        toast.error("가시성 설정은 관리자·검토자만 할 수 있습니다.");
+        return;
+      }
+      if (visibility === "team" && !ownerTeamId) {
+        toast.error("팀 공개는 소유 팀을 먼저 선택하세요.");
+        return;
+      }
+      const nextTeam = visibility === "team" ? ownerTeamId ?? null : null;
+      let prev: { visibility?: DocVisibility; ownerTeamId?: string | null } = {};
+      setTree((cur) =>
+        mutate(cur, id, (n) => {
+          prev = { visibility: n.visibility, ownerTeamId: n.ownerTeamId };
+          return { ...n, visibility, ownerTeamId: nextTeam };
+        }),
+      );
+      const rollback = () =>
+        setTree((cur) =>
+          mutate(cur, id, (n) => ({
+            ...n,
+            visibility: prev.visibility,
+            ownerTeamId: prev.ownerTeamId,
+          })),
+        );
+      setDocumentVisibilityAction(id, visibility, nextTeam)
+        .then((res) => {
+          if (res.ok) toast.success("가시성을 변경했습니다.");
+          else {
+            toast.error(res.reason);
+            rollback();
+          }
+        })
+        .catch((err) => {
+          console.error("setDocumentVisibilityAction failed", err);
+          toast.error(toastErrorMessage(err, "가시성 설정에 실패했습니다."));
           rollback();
         });
     },
@@ -1237,6 +1293,7 @@ export function WorkbenchProvider({
       onboardingTasks,
       faqs,
       members,
+      teams,
       currentUser,
       pageStats,
       verifications,
@@ -1270,6 +1327,7 @@ export function WorkbenchProvider({
       setNodeStatus,
       setRequiredApprover,
       setDocumentSensitivity,
+      setDocumentVisibility,
       rejectDocument,
       addComment,
       resolveComment,
@@ -1317,6 +1375,7 @@ export function WorkbenchProvider({
       onboardingTasks,
       faqs,
       members,
+      teams,
       currentUser,
       pageStats,
       verifications,
@@ -1340,6 +1399,7 @@ export function WorkbenchProvider({
       setNodeStatus,
       setRequiredApprover,
       setDocumentSensitivity,
+      setDocumentVisibility,
       rejectDocument,
       addComment,
       resolveComment,

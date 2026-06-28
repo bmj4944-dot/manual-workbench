@@ -2,6 +2,7 @@ import type {
   Case,
   Comment,
   DocContent,
+  EmbedData,
   FaqItem,
   OnboardingTask,
   PageStats,
@@ -12,6 +13,46 @@ import type {
   Version,
   WhatsNewItem,
 } from "./types";
+
+// 본문 임베드 fallback — 마이그 0032(crm_tickets/products) 적용 전이거나
+// fetch 실패 시 사용. 운영 데이터는 lib/data/embeds 가 DB 에서 읽는다.
+// 키 규칙: 티켓 `ticket-<id>`, 상품 `product-<sku>`.
+export const EMBED_DATA: Record<string, EmbedData> = {
+  "ticket-T-2026-0089": {
+    type: "ticket",
+    id: "T-2026-0089",
+    title: "장바구니에 담긴 상품이 자꾸 사라져요",
+    customer: "홍*동",
+    status: "open",
+    statusLabel: "처리중",
+    priority: "P2",
+    age: "2시간 전",
+    assignee: "김상담",
+    channel: "채팅",
+  },
+  "ticket-T-2026-0123": {
+    type: "ticket",
+    id: "T-2026-0123",
+    title: "환불 요청 — 5월 3일 결제 건",
+    customer: "박*수",
+    status: "resolved",
+    statusLabel: "해결됨",
+    priority: "P3",
+    age: "어제",
+    assignee: "박매니저",
+    channel: "전화",
+  },
+  "product-SKU-9821": {
+    type: "product",
+    sku: "SKU-9821",
+    name: "프리미엄 무선 이어폰 Pro X",
+    price: "₩249,000",
+    stock: 142,
+    stockStatus: "in",
+    category: "오디오 / 이어폰",
+    rating: "4.6 (1,283)",
+  },
+};
 
 export const TEAM_MEMBERS: TeamMember[] = [
   { id: "u-kim", name: "김상담", initials: "김", color: "oklch(0.55 0.14 30)", role: "editor" },

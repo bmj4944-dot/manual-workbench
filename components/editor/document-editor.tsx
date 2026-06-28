@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { EMBED_KEYS, hydrateBody, stripWidgetControls } from "./body-hydration";
+import { hydrateBody, stripWidgetControls } from "./body-hydration";
 import { TableEditorOverlay } from "./table-overlay";
 import { useWorkbench } from "@/lib/workbench-context";
 import {
@@ -249,7 +249,7 @@ export function DocumentEditor({
   onUpdate,
   bottomSlot,
 }: Props) {
-  const { members, activeId } = useWorkbench();
+  const { members, activeId, embeds } = useWorkbench();
   const docRef = useRef<HTMLDivElement>(null);
   const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
   const [colorOpen, setColorOpen] = useState<null | "fg" | "bg">(null);
@@ -270,10 +270,10 @@ export function DocumentEditor({
       docRef.current.innerHTML = content;
     }
     if (docRef.current) {
-      const cleanup = hydrateBody(docRef.current);
+      const cleanup = hydrateBody(docRef.current, embeds);
       return cleanup;
     }
-  }, [content]);
+  }, [content, embeds]);
 
   // Active format detection
   useEffect(() => {
@@ -397,11 +397,11 @@ export function DocumentEditor({
         document.execCommand("insertHTML", false, html);
       } catch {}
       setTimeout(() => {
-        if (docRef.current) hydrateBody(docRef.current);
+        if (docRef.current) hydrateBody(docRef.current, embeds);
       }, 30);
       notifyChange();
     },
-    [notifyChange],
+    [notifyChange, embeds],
   );
 
   const insertCallout = (kind: CalloutKind) => {
@@ -471,11 +471,15 @@ export function DocumentEditor({
   };
 
   const insertEmbed = () => {
-    const list = EMBED_KEYS.join("\n");
-    const key = window.prompt(
-      `임베드 키를 선택하세요:\n${list}`,
-      EMBED_KEYS[0],
-    );
+    const keys = Object.keys(embeds);
+    if (keys.length === 0) {
+      window.alert(
+        "등록된 임베드 소스가 없습니다. 관리 › 임베드에서 티켓/상품을 먼저 추가하세요.",
+      );
+      return;
+    }
+    const list = keys.join("\n");
+    const key = window.prompt(`임베드 키를 선택하세요:\n${list}`, keys[0]);
     if (!key) return;
     insertHTML(
       `<div class="embed" contenteditable="false" data-embed="${key}"></div><p></p>`,

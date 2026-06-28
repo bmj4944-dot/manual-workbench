@@ -140,6 +140,34 @@ export type FaqItem = {
   sources: { id: string; confidence: number; snippet: string }[];
 };
 
+// 본문 임베드(CRM 티켓 / 상품 카탈로그). 문서 본문의 .embed[data-embed] 가
+// 키(`ticket-<id>` / `product-<sku>`)로 이 데이터를 참조한다.
+export type TicketEmbed = {
+  type: "ticket";
+  id: string;
+  title: string;
+  customer: string;
+  status: "open" | "resolved" | "closed";
+  statusLabel: string;
+  priority: string;
+  age: string;
+  assignee: string;
+  channel: string;
+};
+
+export type ProductEmbed = {
+  type: "product";
+  sku: string;
+  name: string;
+  price: string;
+  stock: number;
+  stockStatus: "in" | "low";
+  category: string;
+  rating: string;
+};
+
+export type EmbedData = TicketEmbed | ProductEmbed;
+
 export type WhatsNewItem = {
   id: string;
   what: string;

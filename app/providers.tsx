@@ -10,6 +10,7 @@ import type {
   Case,
   Comment,
   DocContent,
+  EmbedData,
   FaqItem,
   OnboardingTask,
   PageStats,
@@ -28,6 +29,7 @@ export type ProviderProps = {
   initialContent?: Record<string, DocContent>;
   initialCases?: Case[];
   initialFaqs?: FaqItem[];
+  initialEmbeds?: Record<string, EmbedData>;
   initialOnboardingTasks?: OnboardingTask[];
   initialOnboardingDone?: ReadonlySet<string>;
   initialMembers?: TeamMember[];

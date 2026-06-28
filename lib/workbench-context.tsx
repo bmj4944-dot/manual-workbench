@@ -12,6 +12,7 @@ import {
 import {
   CASES,
   COMPLIANCE_RECORDS,
+  EMBED_DATA,
   FAQ_LIST,
   MUST_READ_IDS,
   ONBOARDING_TASKS,
@@ -73,6 +74,7 @@ import type {
   DocContent,
   DocSensitivity,
   DocVisibility,
+  EmbedData,
   FaqItem,
   Locale,
   NodeStatus,
@@ -112,6 +114,7 @@ type WorkbenchState = {
   cases: Case[];
   onboardingTasks: OnboardingTask[];
   faqs: FaqItem[];
+  embeds: Record<string, EmbedData>;
   members: TeamMember[];
   teams: Team[];
   currentUser: CurrentUser | null;
@@ -260,6 +263,7 @@ export function WorkbenchProvider({
   initialContent,
   initialCases,
   initialFaqs,
+  initialEmbeds,
   initialOnboardingTasks,
   initialOnboardingDone,
   initialMembers,
@@ -282,6 +286,7 @@ export function WorkbenchProvider({
   initialContent?: Record<string, DocContent>;
   initialCases?: Case[];
   initialFaqs?: FaqItem[];
+  initialEmbeds?: Record<string, EmbedData>;
   initialOnboardingTasks?: OnboardingTask[];
   initialOnboardingDone?: ReadonlySet<string>;
   initialMembers?: TeamMember[];
@@ -307,6 +312,9 @@ export function WorkbenchProvider({
     initialOnboardingTasks ?? ONBOARDING_TASKS,
   );
   const [faqs] = useState<FaqItem[]>(initialFaqs ?? FAQ_LIST);
+  const [embeds] = useState<Record<string, EmbedData>>(
+    initialEmbeds ?? EMBED_DATA,
+  );
   const [members] = useState<TeamMember[]>(initialMembers ?? TEAM_MEMBERS);
   const [teams] = useState<Team[]>(initialTeams ?? []);
   const [currentUser] = useState<CurrentUser | null>(initialCurrentUser ?? null);
@@ -1323,6 +1331,7 @@ export function WorkbenchProvider({
       cases,
       onboardingTasks,
       faqs,
+      embeds,
       members,
       teams,
       currentUser,
@@ -1405,6 +1414,7 @@ export function WorkbenchProvider({
       cases,
       onboardingTasks,
       faqs,
+      embeds,
       members,
       teams,
       currentUser,

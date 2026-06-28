@@ -6,15 +6,24 @@
  * Ported from design_handoff_manual_workbench/src/quick-actions.jsx.
  */
 
-export function hydrateBody(container: HTMLElement | null): () => void {
+import { EMBED_DATA } from "@/lib/sample-data";
+import type { EmbedData } from "@/lib/types";
+
+// 본문 임베드 데이터는 운영화되어 DB(crm_tickets/products)에서 내려온다.
+// 호출부(document-editor)가 워크벤치 컨텍스트의 맵을 넘긴다. 인자가 없으면
+// 하드코딩 폴백(EMBED_DATA)을 쓴다 — 마이그 미적용/비로그인 SSR 등.
+export function hydrateBody(
+  container: HTMLElement | null,
+  embeds: Record<string, EmbedData> = EMBED_DATA,
+): () => void {
   if (!container) return () => {};
   const cleanups: Array<() => void> = [];
 
   cleanups.push(hydrateScriptCards(container));
   cleanups.push(hydrateDecisionTrees(container));
   cleanups.push(hydrateChecklists(container));
-  hydrateEmbeds(container); // pure DOM mutation; no listeners to clean up
-  cleanups.push(hydrateWidgetControls(container));
+  hydrateEmbeds(container, embeds); // pure DOM mutation; no listeners to clean up
+  cleanups.push(hydrateWidgetControls(container, embeds));
 
   return () => cleanups.forEach((c) => c());
 }
@@ -32,7 +41,10 @@ export function stripWidgetControls(html: string): string {
   return tmp.innerHTML;
 }
 
-function hydrateWidgetControls(container: HTMLElement): () => void {
+function hydrateWidgetControls(
+  container: HTMLElement,
+  embeds: Record<string, EmbedData>,
+): () => void {
   const widgets = Array.from(
     container.querySelectorAll<HTMLElement>(".script-card, .decision-tree, .embed"),
   );
@@ -93,7 +105,7 @@ function hydrateWidgetControls(container: HTMLElement): () => void {
       } else if (action === "edit-tree") {
         editDecisionTree(w);
       } else if (action === "swap-embed") {
-        swapEmbed(w);
+        swapEmbed(w, embeds);
       }
 
       // Notify the editor's MutationObserver path — dispatching an 'input'
@@ -177,8 +189,8 @@ function editDecisionTree(dt: HTMLElement) {
   if (path) path.innerHTML = "";
 }
 
-function swapEmbed(el: HTMLElement) {
-  const keys = Object.keys(EMBED_DATA);
+function swapEmbed(el: HTMLElement, embeds: Record<string, EmbedData>) {
+  const keys = Object.keys(embeds);
   const current = el.dataset.embed ?? "";
   const next = window.prompt(
     `사용 가능한 소스:\n  - ${keys.join("\n  - ")}\n\n새 소스 키`,
@@ -187,7 +199,7 @@ function swapEmbed(el: HTMLElement) {
   if (next == null) return;
   const trimmed = next.trim();
   if (!trimmed) return;
-  if (!(trimmed in EMBED_DATA)) {
+  if (!(trimmed in embeds)) {
     window.alert(`"${trimmed}" 소스가 없습니다. 등록된 키 중에서 선택해주세요.`);
     return;
   }
@@ -206,68 +218,8 @@ function cssEscape(s: string): string {
   return s.replace(/(["\\])/g, "\\$1");
 }
 
-// ─── Embed data (CRM ticket / product catalog) ────────────────────
-type TicketEmbed = {
-  type: "ticket";
-  id: string;
-  title: string;
-  customer: string;
-  status: "open" | "resolved" | "closed";
-  statusLabel: string;
-  priority: string;
-  age: string;
-  assignee: string;
-  channel: string;
-};
-type ProductEmbed = {
-  type: "product";
-  sku: string;
-  name: string;
-  price: string;
-  stock: number;
-  stockStatus: "in" | "low";
-  category: string;
-  rating: string;
-};
-type EmbedData = TicketEmbed | ProductEmbed;
-
-const EMBED_DATA: Record<string, EmbedData> = {
-  "ticket-T-2026-0089": {
-    type: "ticket",
-    id: "T-2026-0089",
-    title: "장바구니에 담긴 상품이 자꾸 사라져요",
-    customer: "홍*동",
-    status: "open",
-    statusLabel: "처리중",
-    priority: "P2",
-    age: "2시간 전",
-    assignee: "김상담",
-    channel: "채팅",
-  },
-  "ticket-T-2026-0123": {
-    type: "ticket",
-    id: "T-2026-0123",
-    title: "환불 요청 — 5월 3일 결제 건",
-    customer: "박*수",
-    status: "resolved",
-    statusLabel: "해결됨",
-    priority: "P3",
-    age: "어제",
-    assignee: "박매니저",
-    channel: "전화",
-  },
-  "product-SKU-9821": {
-    type: "product",
-    sku: "SKU-9821",
-    name: "프리미엄 무선 이어폰 Pro X",
-    price: "₩249,000",
-    stock: 142,
-    stockStatus: "in",
-    category: "오디오 / 이어폰",
-    rating: "4.6 (1,283)",
-  },
-};
-
+// ─── Embed rendering (CRM ticket / product catalog) ────────────────
+// 데이터(EmbedData)는 lib/types 에, 운영 소스는 lib/data/embeds(DB) 에 있다.
 const EXTERNAL_ICON = `<svg width="11" height="11" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 2H3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V9"/><polyline points="9 2 12 2 12 5"/><line x1="6" y1="8" x2="12" y2="2"/></svg>`;
 
 function escapeHtml(s: string): string {
@@ -279,13 +231,16 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function hydrateEmbeds(container: HTMLElement): void {
+function hydrateEmbeds(
+  container: HTMLElement,
+  embeds: Record<string, EmbedData>,
+): void {
   const els = Array.from(container.querySelectorAll<HTMLElement>(".embed"));
   els.forEach((el) => {
     if (el.dataset.hydrated) return;
     el.dataset.hydrated = "1";
     const key = el.dataset.embed ?? "";
-    const data = EMBED_DATA[key];
+    const data = embeds[key];
     if (!data) {
       el.innerHTML = `<div class="em-bd" style="color:var(--ink-3);font-size:12.5px">임베드 없음: ${escapeHtml(key)}</div>`;
       return;
@@ -333,8 +288,6 @@ function hydrateEmbeds(container: HTMLElement): void {
     }
   });
 }
-
-export const EMBED_KEYS = Object.keys(EMBED_DATA);
 
 function hydrateScriptCards(container: HTMLElement): () => void {
   const cards = Array.from(container.querySelectorAll<HTMLElement>(".script-card"));

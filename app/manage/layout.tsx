@@ -18,6 +18,7 @@ const MANAGE_NAV: { href: string; label: string }[] = [
   { href: "/manage/cases", label: "사례" },
   { href: "/manage/faq", label: "FAQ" },
   { href: "/manage/onboarding", label: "온보딩" },
+  { href: "/manage/embeds", label: "임베드" },
 ];
 
 export default async function ManageLayout({
